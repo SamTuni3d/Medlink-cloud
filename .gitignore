@@ -1,0 +1,37 @@
+# dependencies
+node_modules
+.pnpm-store
+
+# Next.js
+.next
+out
+
+# PWA generated files
+apps/web/public/sw.js
+apps/web/public/sw.js.map
+apps/web/public/workbox-*.js
+apps/web/public/workbox-*.js.map
+
+# env files — never commit real values
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+apps/web/.env.local
+supabase/functions/.env
+
+# Supabase local dev
+supabase/.temp
+
+# TypeScript
+*.tsbuildinfo
+
+# Vitest
+coverage
+
+# misc
+.DS_Store
+*.pem
+npm-debug.log*
+dist
