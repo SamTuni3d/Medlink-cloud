@@ -1,7 +1,10 @@
-import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
-export async function middleware(request: NextRequest) {
+// Auth check is done by inspecting the Supabase session cookie directly.
+// This avoids calling @supabase/ssr in the Edge runtime which can cause
+// MIDDLEWARE_INVOCATION_FAILED on Vercel. Full session validation happens
+// inside each Server Component / Route Handler via createServerClient.
+export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   const authRoutes = [
@@ -13,54 +16,24 @@ export async function middleware(request: NextRequest) {
   ]
   const isAuthRoute = authRoutes.some((route) => pathname.startsWith(route))
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  // Supabase stores the session in a cookie named sb-<ref>-auth-token
+  const hasSession = request.cookies.getAll().some(
+    (c) => c.name.startsWith('sb-') && c.name.includes('-auth-token')
+  )
 
-  // If env vars are missing (e.g. misconfigured deployment), allow through
-  // rather than crashing with MIDDLEWARE_INVOCATION_FAILED.
-  if (!supabaseUrl || !supabaseAnonKey) {
-    return NextResponse.next({ request })
+  if (!hasSession && !isAuthRoute) {
+    const url = request.nextUrl.clone()
+    url.pathname = '/login'
+    return NextResponse.redirect(url)
   }
 
-  let supabaseResponse = NextResponse.next({ request })
-
-  const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
-    cookies: {
-      getAll() {
-        return request.cookies.getAll()
-      },
-      setAll(cookiesToSet) {
-        cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
-        supabaseResponse = NextResponse.next({ request })
-        cookiesToSet.forEach(({ name, value, options }) =>
-          supabaseResponse.cookies.set(name, value, options)
-        )
-      },
-    },
-  })
-
-  try {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
-
-    if (!user && !isAuthRoute) {
-      const url = request.nextUrl.clone()
-      url.pathname = '/login'
-      return NextResponse.redirect(url)
-    }
-
-    if (user && isAuthRoute) {
-      const url = request.nextUrl.clone()
-      url.pathname = '/dashboard'
-      return NextResponse.redirect(url)
-    }
-  } catch {
-    // Auth check failed — allow the request through rather than 500ing
-    return NextResponse.next({ request })
+  if (hasSession && isAuthRoute) {
+    const url = request.nextUrl.clone()
+    url.pathname = '/dashboard'
+    return NextResponse.redirect(url)
   }
 
-  return supabaseResponse
+  return NextResponse.next()
 }
 
 export const config = {
