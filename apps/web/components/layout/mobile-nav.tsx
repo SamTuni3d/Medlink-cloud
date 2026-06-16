@@ -14,7 +14,7 @@ export function MobileNav() {
       <Button
         variant="ghost"
         size="icon"
-        className="md:hidden"
+        className="h-9 w-9 md:hidden text-slate-600 hover:bg-slate-100"
         onClick={() => setOpen(true)}
         aria-label="Open navigation"
       >
@@ -22,11 +22,20 @@ export function MobileNav() {
       </Button>
 
       <Sheet open={open} onOpenChange={setOpen}>
-        <SheetContent side="left" className="w-64 p-0">
-          <SheetHeader className="flex h-16 items-center border-b px-6">
-            <SheetTitle className="text-primary">MedLink Cloud</SheetTitle>
+        <SheetContent side="left" className="w-60 p-0 bg-white dark:bg-slate-900">
+          <SheetHeader className="flex h-16 flex-row items-center gap-2.5 border-b border-slate-200 dark:border-slate-700 px-5">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary shadow-sm">
+              <span className="text-sm font-bold text-white">M</span>
+            </div>
+            <div>
+              <SheetTitle className="text-sm font-bold text-slate-900 dark:text-slate-100 leading-none">MedLink</SheetTitle>
+              <p className="text-[10px] font-medium text-slate-400 uppercase tracking-wider leading-none mt-0.5">Cloud</p>
+            </div>
           </SheetHeader>
           <div className="py-4">
+            <p className="px-6 pb-2 text-[10px] font-semibold uppercase tracking-widest text-slate-400">
+              Menu
+            </p>
             <SidebarNav onNavigate={() => setOpen(false)} />
           </div>
         </SheetContent>

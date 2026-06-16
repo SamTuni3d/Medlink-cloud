@@ -5,8 +5,13 @@ import { useRouter } from 'next/navigation'
 import { LogOut } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { DropdownMenuItem } from '@/components/ui/dropdown-menu'
+import { Button } from '@/components/ui/button'
 
-export function SignOutButton() {
+interface SignOutButtonProps {
+  iconOnly?: boolean
+}
+
+export function SignOutButton({ iconOnly = false }: SignOutButtonProps) {
   const [isPending, startTransition] = useTransition()
   const router = useRouter()
 
@@ -17,6 +22,21 @@ export function SignOutButton() {
       router.push('/login')
       router.refresh()
     })
+  }
+
+  if (iconOnly) {
+    return (
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={handleSignOut}
+        disabled={isPending}
+        className="h-7 w-7 shrink-0 text-slate-400 hover:text-destructive hover:bg-destructive/10"
+        title="Sign out"
+      >
+        <LogOut className="h-3.5 w-3.5" />
+      </Button>
+    )
   }
 
   return (
