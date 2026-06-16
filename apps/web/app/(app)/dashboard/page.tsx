@@ -3,13 +3,12 @@
 import { useState, useCallback, useEffect } from 'react'
 import Link from 'next/link'
 import {
-  TrendingUp, ShoppingCart, AlertTriangle, Clock,
-  RefreshCw, Bell, CheckCheck, ArrowUpRight, ArrowDownRight,
-  Tablet, Package, BarChart2, ChevronRight,
+  TrendingUp, ShoppingCart, RefreshCw, ChevronRight, Package,
+  AlertCircle, Zap, Info, AlertTriangle,
 } from 'lucide-react'
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer,
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
+  ResponsiveContainer, Dot,
 } from 'recharts'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -20,104 +19,127 @@ import { useAuth } from '@/providers/auth-provider'
 import { useDashboardStats } from '@/hooks/useDashboardStats'
 import { formatCurrency } from '@/lib/formatCurrency'
 import { createClient } from '@/lib/supabase/client'
-import { getNotifications, markAllNotificationsRead, getSales } from '@medlink/data-client'
-import type { Notification, Sale } from '@medlink/data-client'
-
-// ─── Types ──────────────────────────────────────────────────────────────────
+import { getSales } from '@medlink/data-client'
+import type { Sale, InventoryWithBatches } from '@medlink/data-client'
 
 interface ChartDay {
-  day: string
+  date: string
   amount: number
 }
-
-// ─── Helpers ────────────────────────────────────────────────────────────────
 
 function getLast7Days(): ChartDay[] {
   return Array.from({ length: 7 }, (_, i) => {
     const d = new Date()
     d.setDate(d.getDate() - (6 - i))
     return {
-      day: d.toLocaleDateString('en-GH', { weekday: 'short' }),
+      date: d.toLocaleDateString('en-GH', { month: 'short', day: 'numeric' }),
       amount: 0,
     }
   })
 }
 
-function StatCard({
-  label, icon: Icon, value, sub, trend, urgent, loading, color,
-}: {
-  label: string
-  icon: typeof TrendingUp
-  value: string | null
-  sub: string | null
-  trend?: number
-  urgent?: boolean
-  loading?: boolean
-  color: string
-}) {
-  return (
-    <Card className={`relative overflow-hidden border-0 shadow-sm transition-shadow hover:shadow-md ${
-      urgent ? 'ring-1 ring-destructive/40' : ''
-    }`}>
-      <CardContent className="p-5">
-        <div className="flex items-start justify-between">
-          <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${color}`}>
-            <Icon className="h-5 w-5 text-white" />
-          </div>
-          {trend !== undefined && (
-            <div className={`flex items-center gap-0.5 text-xs font-medium ${
-              trend >= 0 ? 'text-emerald-600' : 'text-red-500'
-            }`}>
-              {trend >= 0
-                ? <ArrowUpRight className="h-3.5 w-3.5" />
-                : <ArrowDownRight className="h-3.5 w-3.5" />}
-              {Math.abs(trend)}%
-            </div>
-          )}
-        </div>
-        <div className="mt-4">
-          {loading || value === null ? (
-            <>
-              <Skeleton className="h-8 w-28" />
-              <Skeleton className="mt-2 h-3.5 w-36" />
-            </>
-          ) : (
-            <>
-              <p className={`text-2xl font-bold tracking-tight ${
-                urgent ? 'text-destructive' : 'text-slate-900 dark:text-slate-100'
-              }`}>
-                {value}
-              </p>
-              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{sub}</p>
-            </>
-          )}
-        </div>
-        <p className="mt-3 text-xs font-medium text-slate-600 dark:text-slate-300">{label}</p>
-      </CardContent>
-    </Card>
-  )
+// ─── AI Insights ─────────────────────────────────────────────────────────────
+
+interface Insight {
+  title: string
+  body: string
+  severity: 'critical' | 'info' | 'warning'
 }
 
-function QuickActions() {
-  const actions = [
-    { label: 'New Sale', href: '/pos', icon: Tablet, color: 'bg-primary' },
-    { label: 'Inventory', href: '/inventory', icon: Package, color: 'bg-blue-600' },
-    { label: 'Reports', href: '/reports', icon: BarChart2, color: 'bg-violet-600' },
-    { label: 'Sales Log', href: '/sales', icon: ShoppingCart, color: 'bg-amber-500' },
-  ]
+function deriveInsights(rows: InventoryWithBatches[], currency: string): Insight[] {
+  const insights: Insight[] = []
 
+  // Critical reorder items (stock < 20% of reorder point)
+  const criticalItems = rows
+    .filter(r => r.available_stock < r.reorder_point && r.reorder_point > 0)
+    .sort((a, b) => (a.available_stock / a.reorder_point) - (b.available_stock / b.reorder_point))
+    .slice(0, 1)
+
+  for (const item of criticalItems) {
+    const daysLeft = item.available_stock // simplified — assume 1 unit/day
+    insights.push({
+      title: 'Reorder Required',
+      body: `${item.medication_name} is running low. Current stock: ${item.available_stock} units (reorder at ${item.reorder_point}).`,
+      severity: 'critical',
+    })
+  }
+
+  // Slow-moving stock (stock > 5× reorder point)
+  const slowMovers = rows
+    .filter(r => r.reorder_point > 0 && r.available_stock > r.reorder_point * 5)
+    .sort((a, b) => b.available_stock / b.reorder_point - a.available_stock / a.reorder_point)
+    .slice(0, 2)
+
+  for (const item of slowMovers) {
+    const ratio = Math.round(item.available_stock / item.reorder_point)
+    insights.push({
+      title: 'Slow-Moving Stock Detected',
+      body: `${item.medication_name} has ${item.available_stock} units in stock — ${ratio}× above reorder level. Low turnover detected.`,
+      severity: 'info',
+    })
+  }
+
+  // Out of stock
+  const outOfStock = rows.filter(r => r.available_stock === 0).length
+  if (outOfStock > 0) {
+    insights.push({
+      title: 'Out-of-Stock Alert',
+      body: `${outOfStock} medication${outOfStock > 1 ? 's are' : ' is'} completely out of stock and unavailable for dispensing.`,
+      severity: 'critical',
+    })
+  }
+
+  // Generic optimization insight
+  insights.push({
+    title: 'Inventory Optimization Opportunity',
+    body: `You have ${outOfStock} out-of-stock items. Consider setting up automatic reorder triggers to prevent stockouts.`,
+    severity: 'info',
+  })
+
+  return insights.slice(0, 4)
+}
+
+// ─── KPI Card ────────────────────────────────────────────────────────────────
+
+function KpiCard({
+  label, value, sub, icon: Icon, urgent, loading,
+}: {
+  label: string
+  value: string | null
+  sub?: string
+  icon: typeof TrendingUp
+  urgent?: boolean
+  loading?: boolean
+}) {
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-      {actions.map(({ label, href, icon: Icon, color }) => (
-        <Link key={href} href={href}>
-          <div className="flex flex-col items-center gap-2.5 rounded-xl border border-slate-200 bg-white p-4 text-center shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md dark:border-slate-700 dark:bg-slate-800">
-            <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${color} shadow-sm`}>
-              <Icon className="h-5 w-5 text-white" />
-            </div>
-            <span className="text-xs font-semibold text-slate-700 dark:text-slate-200">{label}</span>
-          </div>
-        </Link>
-      ))}
+    <div className={`rounded-xl border bg-white dark:bg-slate-900 p-5 ${
+      urgent
+        ? 'border-red-200 dark:border-red-800 bg-red-50/50 dark:bg-red-900/10'
+        : 'border-slate-200 dark:border-slate-700'
+    }`}>
+      <div className="flex items-start justify-between">
+        <p className="text-sm text-slate-500 dark:text-slate-400">{label}</p>
+        <Icon className={`h-4 w-4 ${urgent ? 'text-red-400' : 'text-slate-300 dark:text-slate-600'}`} />
+      </div>
+      {loading || value === null ? (
+        <>
+          <Skeleton className="mt-3 h-8 w-32" />
+          {sub && <Skeleton className="mt-2 h-3 w-40" />}
+        </>
+      ) : (
+        <>
+          <p className={`mt-2 text-3xl font-bold tracking-tight ${
+            urgent ? 'text-red-600 dark:text-red-400' : 'text-slate-900 dark:text-slate-100'
+          }`}>
+            {value}
+          </p>
+          {sub && (
+            <p className={`mt-1 text-xs ${urgent ? 'text-red-500' : 'text-slate-500 dark:text-slate-400'}`}>
+              {sub}
+            </p>
+          )}
+        </>
+      )}
     </div>
   )
 }
@@ -132,108 +154,40 @@ export default function DashboardPage() {
     organizationId
   )
 
-  const [notifications, setNotifications] = useState<Notification[]>([])
-  const [notifLoading, setNotifLoading] = useState(true)
-  const [markingRead, setMarkingRead] = useState(false)
   const [chartData, setChartData] = useState<ChartDay[]>(getLast7Days())
   const [recentSales, setRecentSales] = useState<Sale[]>([])
   const [salesLoading, setSalesLoading] = useState(true)
 
-  const loadNotifications = useCallback(async () => {
-    if (!organizationId) { setNotifLoading(false); return }
-    setNotifLoading(true)
-    const result = await getNotifications(createClient(), organizationId, {
-      branchId: activeBranch?.id,
-      unreadOnly: false,
-      limit: 10,
-    })
-    if (result.ok) setNotifications(result.data)
-    setNotifLoading(false)
-  }, [organizationId, activeBranch?.id])
-
   const loadRecentSales = useCallback(async () => {
-    if (!organizationId) { setSalesLoading(false); return }
+    if (!activeBranch) { setSalesLoading(false); return }
     setSalesLoading(true)
     const sevenDaysAgo = new Date()
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6)
-    const result = await getSales(createClient(), activeBranch?.id ?? '', {
+    const result = await getSales(createClient(), activeBranch.id, {
       fromDate: sevenDaysAgo.toISOString(),
       limit: 50,
     })
     if (result.ok) {
       setRecentSales(result.data.slice(0, 5))
-      // Build 7-day chart data
       const days = getLast7Days()
       for (const sale of result.data) {
-        const saleDay = new Date(sale.created_at).toLocaleDateString('en-GH', { weekday: 'short' })
-        const idx = days.findIndex(d => d.day === saleDay)
-        const day = days[idx]
-        if (idx !== -1 && day) day.amount += Number(sale.total_amount)
+        if (sale.status !== 'completed') continue
+        const saleLabel = new Date(sale.created_at).toLocaleDateString('en-GH', {
+          month: 'short', day: 'numeric',
+        })
+        const bucket = days.find(d => d.date === saleLabel)
+        if (bucket) bucket.amount += Number(sale.total_amount)
       }
       setChartData([...days])
     }
     setSalesLoading(false)
-  }, [organizationId, activeBranch?.id])
+  }, [activeBranch])
 
-  useEffect(() => {
-    void loadNotifications()
-    void loadRecentSales()
-  }, [loadNotifications, loadRecentSales])
+  useEffect(() => { void loadRecentSales() }, [loadRecentSales])
 
-  async function markAllRead() {
-    if (!organizationId) return
-    setMarkingRead(true)
-    await markAllNotificationsRead(createClient(), organizationId, activeBranch?.id)
-    setNotifications(prev => prev.map(n => ({ ...n, is_read: true })))
-    setMarkingRead(false)
-    void refresh()
-  }
-
-  const currencyCode = stats?.currencyCode ?? 'GHS'
-  const unreadCount = notifications.filter(n => !n.is_read).length
-
-  const statCards = [
-    {
-      label: "Today's Revenue",
-      icon: TrendingUp,
-      value: loading ? null : formatCurrency(stats?.salesTodayAmount ?? 0, currencyCode),
-      sub: `${stats?.transactionCount ?? 0} transactions completed`,
-      color: 'bg-primary',
-    },
-    {
-      label: 'Transactions Today',
-      icon: ShoppingCart,
-      value: loading ? null : String(stats?.transactionCount ?? 0),
-      sub: 'sales processed today',
-      color: 'bg-blue-600',
-    },
-    {
-      label: 'Low Stock Items',
-      icon: AlertTriangle,
-      value: loading ? null : String(stats?.lowStockCount ?? 0),
-      sub: 'at or below reorder point',
-      urgent: (stats?.lowStockCount ?? 0) > 0,
-      color: (stats?.lowStockCount ?? 0) > 0 ? 'bg-red-500' : 'bg-slate-400',
-    },
-    {
-      label: 'Expiry Alerts',
-      icon: Clock,
-      value: loading ? null : String(stats?.expiringSoonCount ?? 0),
-      sub: 'unread expiry warnings',
-      urgent: (stats?.expiringSoonCount ?? 0) > 0,
-      color: (stats?.expiringSoonCount ?? 0) > 0 ? 'bg-amber-500' : 'bg-slate-400',
-    },
-  ]
-
-  function severityBadge(severity: Notification['severity']) {
-    if (severity === 'critical') return 'destructive' as const
-    if (severity === 'warning') return 'secondary' as const
-    return 'outline' as const
-  }
-
-  const today = new Date().toLocaleDateString('en-GH', {
-    weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
-  })
+  const currency = stats?.currencyCode ?? 'GHS'
+  const actionNeeded = (stats?.lowStockCount ?? 0) + (stats?.expiringSoonCount ?? 0)
+  const insights = stats ? deriveInsights(stats.inventoryRows, currency) : []
 
   return (
     <div className="mx-auto max-w-7xl space-y-6">
@@ -241,13 +195,13 @@ export default function DashboardPage() {
       {/* Header */}
       <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-xl font-bold text-slate-900 dark:text-slate-100">Overview</h1>
-          <p className="text-sm text-slate-500 dark:text-slate-400">{today}</p>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Executive Dashboard</h1>
+          <p className="text-sm text-slate-500 dark:text-slate-400">Welcome back. Here is your pharmacy&apos;s command center.</p>
         </div>
         <Button
           variant="outline"
           size="sm"
-          onClick={() => { void refresh(); void loadNotifications(); void loadRecentSales() }}
+          onClick={() => { void refresh(); void loadRecentSales() }}
           disabled={loading}
           className="self-start sm:self-auto"
         >
@@ -270,37 +224,52 @@ export default function DashboardPage() {
 
       {/* KPI cards */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {statCards.map((card) => (
-          <StatCard key={card.label} loading={loading} {...card} />
-        ))}
+        <KpiCard
+          label="Sales Today"
+          icon={TrendingUp}
+          value={loading ? null : formatCurrency(stats?.salesTodayAmount ?? 0, currency)}
+          loading={loading}
+        />
+        <KpiCard
+          label="Gross Profit (Month)"
+          icon={TrendingUp}
+          value={loading ? null : formatCurrency(stats?.grossProfitMonth ?? 0, currency)}
+          loading={loading}
+        />
+        <KpiCard
+          label="Inventory Value"
+          icon={Package}
+          value={loading ? null : formatCurrency(stats?.inventoryValue ?? 0, currency)}
+          loading={loading}
+        />
+        <KpiCard
+          label="Action Needed"
+          icon={AlertCircle}
+          value={loading ? null : String(actionNeeded)}
+          sub={loading ? undefined : `${stats?.lowStockCount ?? 0} Low Stock • ${stats?.expiringSoonCount ?? 0} Expiring`}
+          urgent={actionNeeded > 0}
+          loading={loading}
+        />
       </div>
 
-      {/* Quick actions */}
-      <div>
-        <h2 className="mb-3 text-sm font-semibold text-slate-700 dark:text-slate-300">Quick Actions</h2>
-        <QuickActions />
-      </div>
-
-      {/* Chart + Notifications row */}
+      {/* Chart + AI Insights row */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
 
-        {/* 7-day revenue chart */}
-        <Card className="border-0 shadow-sm lg:col-span-2">
+        {/* 7-day line chart */}
+        <Card className="border-slate-200 dark:border-slate-700 shadow-sm lg:col-span-2">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-semibold">7-Day Revenue</CardTitle>
-            <CardDescription className="text-xs">
-              {activeBranch ? activeBranch.name : 'All branches'}
-            </CardDescription>
+            <CardTitle className="text-base font-semibold">Sales Trend (7 Days)</CardTitle>
+            <CardDescription className="text-xs">Revenue and transaction volume</CardDescription>
           </CardHeader>
           <CardContent>
             {salesLoading ? (
-              <Skeleton className="h-48 w-full" />
+              <Skeleton className="h-56 w-full" />
             ) : (
-              <ResponsiveContainer width="100%" height={200}>
-                <BarChart data={chartData} barSize={28}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+              <ResponsiveContainer width="100%" height={240}>
+                <LineChart data={chartData} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
                   <XAxis
-                    dataKey="day"
+                    dataKey="date"
                     tick={{ fontSize: 11, fill: '#94a3b8' }}
                     axisLine={false}
                     tickLine={false}
@@ -309,93 +278,84 @@ export default function DashboardPage() {
                     tick={{ fontSize: 11, fill: '#94a3b8' }}
                     axisLine={false}
                     tickLine={false}
-                    tickFormatter={(v: number) => v === 0 ? '0' : `${(v/1000).toFixed(0)}k`}
-                    width={35}
+                    tickFormatter={(v: number) => v === 0 ? '¢0' : `¢${(v / 100).toFixed(0)}`}
+                    width={40}
                   />
                   <Tooltip
-                    formatter={(value: number) => [formatCurrency(value, currencyCode), 'Revenue']}
+                    formatter={(value: number) => [formatCurrency(value, currency), 'Revenue']}
                     contentStyle={{
                       borderRadius: '8px',
                       border: '1px solid #e2e8f0',
                       fontSize: '12px',
                       boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
                     }}
-                    cursor={{ fill: '#f8fafc' }}
                   />
-                  <Bar dataKey="amount" fill="#0F7938" radius={[4, 4, 0, 0]} />
-                </BarChart>
+                  <Line
+                    type="monotone"
+                    dataKey="amount"
+                    stroke="#0F7938"
+                    strokeWidth={2}
+                    dot={{ fill: '#0F7938', strokeWidth: 0, r: 4 }}
+                    activeDot={{ r: 6, fill: '#0F7938' }}
+                  />
+                </LineChart>
               </ResponsiveContainer>
             )}
           </CardContent>
         </Card>
 
-        {/* Notifications */}
-        <Card className="border-0 shadow-sm">
-          <CardHeader className="pb-2">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Bell className="h-4 w-4 text-slate-500" />
-                <CardTitle className="text-sm font-semibold">Alerts</CardTitle>
-                {unreadCount > 0 && (
-                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-white">
-                    {unreadCount > 9 ? '9+' : unreadCount}
-                  </span>
-                )}
-              </div>
-              {unreadCount > 0 && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => void markAllRead()}
-                  disabled={markingRead}
-                  className="h-7 px-2 text-xs"
-                >
-                  <CheckCheck className="mr-1 h-3 w-3" />
-                  All read
-                </Button>
-              )}
+        {/* AI Insights */}
+        <Card className="border-slate-200 dark:border-slate-700 shadow-sm">
+          <CardHeader className="pb-3">
+            <div className="flex items-center gap-2">
+              <Zap className="h-4 w-4 text-amber-500" />
+              <CardTitle className="text-base font-semibold">AI Insights</CardTitle>
             </div>
+            <CardDescription className="text-xs">Smart recommendations for your pharmacy</CardDescription>
           </CardHeader>
-          <CardContent className="p-0">
-            {notifLoading ? (
-              <div className="space-y-2 px-6 pb-4">
-                {Array.from({ length: 3 }).map((_, i) => (
-                  <Skeleton key={i} className="h-14 w-full rounded-lg" />
-                ))}
+          <CardContent className="p-0 pb-4">
+            {loading ? (
+              <div className="space-y-3 px-6">
+                {[1, 2, 3].map(i => <Skeleton key={i} className="h-16 w-full rounded-lg" />)}
               </div>
-            ) : notifications.length === 0 ? (
-              <div className="flex flex-col items-center gap-2 py-8 text-center">
-                <Bell className="h-6 w-6 text-slate-300" />
-                <p className="text-xs text-slate-500">No alerts right now</p>
+            ) : insights.length === 0 ? (
+              <div className="flex flex-col items-center gap-2 py-8 text-center px-6">
+                <Zap className="h-8 w-8 text-slate-200 dark:text-slate-700" />
+                <p className="text-xs text-slate-500">No insights — all good!</p>
               </div>
             ) : (
-              <div className="divide-y divide-slate-100 dark:divide-slate-800">
-                {notifications.slice(0, 6).map(n => (
-                  <div key={n.id} className={`flex gap-3 px-5 py-3 ${
-                    n.is_read ? 'opacity-50' : ''
-                  }`}>
-                    <div className={`mt-1 h-2 w-2 shrink-0 rounded-full ${
-                      n.severity === 'critical' ? 'bg-red-500' :
-                      n.severity === 'warning' ? 'bg-amber-500' : 'bg-slate-300'
-                    }`} />
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-1.5">
-                        <p className="truncate text-xs font-medium text-slate-800 dark:text-slate-200">
-                          {n.title}
-                        </p>
-                        <Badge variant={severityBadge(n.severity)} className="shrink-0 text-[10px] px-1 py-0">
-                          {n.severity}
-                        </Badge>
+              <div className="space-y-2 px-4">
+                {insights.map((insight, i) => (
+                  <div
+                    key={i}
+                    className="rounded-lg border border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 p-3"
+                  >
+                    <div className="flex items-center gap-2 mb-1">
+                      <div className={`flex h-6 w-6 items-center justify-center rounded-md ${
+                        insight.severity === 'critical'
+                          ? 'bg-amber-100 dark:bg-amber-900/30'
+                          : 'bg-amber-50 dark:bg-amber-900/20'
+                      }`}>
+                        <Zap className="h-3.5 w-3.5 text-amber-500" />
                       </div>
-                      <p className="mt-0.5 text-[11px] text-slate-500 line-clamp-1">{n.body}</p>
+                      <span className="text-xs font-semibold text-slate-800 dark:text-slate-200 flex-1">
+                        {insight.title}
+                      </span>
+                      <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${
+                        insight.severity === 'critical'
+                          ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                          : insight.severity === 'warning'
+                            ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
+                            : 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400'
+                      }`}>
+                        {insight.severity}
+                      </span>
                     </div>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-snug pl-8">
+                      {insight.body}
+                    </p>
                   </div>
                 ))}
-                {notifications.length > 6 && (
-                  <div className="px-5 py-2.5 text-center">
-                    <p className="text-xs text-slate-400">{notifications.length - 6} more alerts</p>
-                  </div>
-                )}
               </div>
             )}
           </CardContent>
@@ -403,7 +363,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Recent sales */}
-      <Card className="border-0 shadow-sm">
+      <Card className="border-slate-200 dark:border-slate-700 shadow-sm">
         <CardHeader className="pb-2">
           <div className="flex items-center justify-between">
             <div>
@@ -434,11 +394,11 @@ export default function DashboardPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-slate-100 dark:border-slate-800">
-                    <th className="whitespace-nowrap px-5 py-2.5 text-left text-xs font-medium text-slate-500">Sale #</th>
-                    <th className="whitespace-nowrap px-5 py-2.5 text-left text-xs font-medium text-slate-500 hidden sm:table-cell">Time</th>
-                    <th className="whitespace-nowrap px-5 py-2.5 text-left text-xs font-medium text-slate-500 hidden md:table-cell">Payment</th>
-                    <th className="whitespace-nowrap px-5 py-2.5 text-right text-xs font-medium text-slate-500">Total</th>
-                    <th className="whitespace-nowrap px-5 py-2.5 text-right text-xs font-medium text-slate-500">Status</th>
+                    <th className="px-5 py-2.5 text-left text-xs font-medium text-slate-500">Sale #</th>
+                    <th className="hidden px-5 py-2.5 text-left text-xs font-medium text-slate-500 sm:table-cell">Time</th>
+                    <th className="hidden px-5 py-2.5 text-left text-xs font-medium text-slate-500 md:table-cell">Payment</th>
+                    <th className="px-5 py-2.5 text-right text-xs font-medium text-slate-500">Total</th>
+                    <th className="px-5 py-2.5 text-right text-xs font-medium text-slate-500">Status</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-50 dark:divide-slate-800">
@@ -447,12 +407,10 @@ export default function DashboardPage() {
                       <td className="px-5 py-3 font-mono text-xs font-medium text-slate-800 dark:text-slate-200">
                         {sale.sale_number}
                       </td>
-                      <td className="px-5 py-3 text-xs text-slate-500 hidden sm:table-cell">
-                        {new Date(sale.created_at).toLocaleTimeString('en-GH', {
-                          hour: '2-digit', minute: '2-digit',
-                        })}
+                      <td className="hidden px-5 py-3 text-xs text-slate-500 sm:table-cell">
+                        {new Date(sale.created_at).toLocaleTimeString('en-GH', { hour: '2-digit', minute: '2-digit' })}
                       </td>
-                      <td className="px-5 py-3 text-xs text-slate-500 capitalize hidden md:table-cell">
+                      <td className="hidden px-5 py-3 text-xs capitalize text-slate-500 md:table-cell">
                         {sale.payment_method.replace('_', ' ')}
                       </td>
                       <td className="px-5 py-3 text-right text-xs font-semibold text-slate-800 dark:text-slate-200">
@@ -463,8 +421,8 @@ export default function DashboardPage() {
                           sale.status === 'completed'
                             ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400'
                             : sale.status === 'voided'
-                            ? 'bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400'
-                            : 'bg-slate-100 text-slate-600'
+                              ? 'bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400'
+                              : 'bg-slate-100 text-slate-600'
                         }`}>
                           {sale.status}
                         </span>
