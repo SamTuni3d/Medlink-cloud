@@ -79,10 +79,6 @@ export default function NotificationsPage() {
     { key: 'expired', label: 'Expired', count: expired.length },
   ]
 
-  const activeItems =
-    activeTab === 'low_stock' ? lowStock :
-    activeTab === 'expiring' ? expiringSoon : expired
-
   return (
     <div className="space-y-6">
       {/* Header */}

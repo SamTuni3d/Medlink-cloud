@@ -4,17 +4,16 @@ import { useState, useCallback, useEffect } from 'react'
 import Link from 'next/link'
 import {
   TrendingUp, ShoppingCart, RefreshCw, ChevronRight, Package,
-  AlertCircle, Zap, Info, AlertTriangle,
+  AlertCircle, Zap,
 } from 'lucide-react'
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, Dot,
+  ResponsiveContainer,
 } from 'recharts'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
-import { StaggerGrid, StaggerItem, HoverCard, FadeUp, FadeIn } from '@/components/ui/motion-primitives'
+import { StaggerGrid, StaggerItem, HoverCard, FadeIn } from '@/components/ui/motion-primitives'
 import { useBranch } from '@/hooks/useBranch'
 import { useAuth } from '@/providers/auth-provider'
 import { useDashboardStats } from '@/hooks/useDashboardStats'
@@ -47,7 +46,7 @@ interface Insight {
   severity: 'critical' | 'info' | 'warning'
 }
 
-function deriveInsights(rows: InventoryWithBatches[], currency: string): Insight[] {
+function deriveInsights(rows: InventoryWithBatches[]): Insight[] {
   const insights: Insight[] = []
 
   // Critical reorder items (stock < 20% of reorder point)
@@ -57,7 +56,6 @@ function deriveInsights(rows: InventoryWithBatches[], currency: string): Insight
     .slice(0, 1)
 
   for (const item of criticalItems) {
-    const daysLeft = item.available_stock // simplified — assume 1 unit/day
     insights.push({
       title: 'Reorder Required',
       body: `${item.medication_name} is running low. Current stock: ${item.available_stock} units (reorder at ${item.reorder_point}).`,
@@ -188,7 +186,7 @@ export default function DashboardPage() {
 
   const currency = stats?.currencyCode ?? 'GHS'
   const actionNeeded = (stats?.lowStockCount ?? 0) + (stats?.expiringSoonCount ?? 0)
-  const insights = stats ? deriveInsights(stats.inventoryRows, currency) : []
+  const insights = stats ? deriveInsights(stats.inventoryRows) : []
 
   return (
     <div className="mx-auto max-w-7xl space-y-6">

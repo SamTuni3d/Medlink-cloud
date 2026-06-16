@@ -7,7 +7,6 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -16,7 +15,7 @@ import { useBranch } from '@/hooks/useBranch'
 import { createClient } from '@/lib/supabase/client'
 import { getInventory } from '@medlink/data-client'
 import { formatCurrency } from '@/lib/formatCurrency'
-import { StaggerGrid, StaggerItem, HoverCard, SlideInRow, FadeUp } from '@/components/ui/motion-primitives'
+import { StaggerGrid, StaggerItem, HoverCard, SlideInRow } from '@/components/ui/motion-primitives'
 import type { InventoryWithBatches } from '@medlink/data-client'
 
 type StockFilter = 'all' | 'in_stock' | 'low_stock' | 'out_of_stock' | 'expiring'

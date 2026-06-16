@@ -60,14 +60,6 @@
   }
 }
 
-/* ── Custom cursor (desktop only) ─────────────────────────────────────────── */
-@media (pointer: fine) {
-  *,
-  *:hover {
-    cursor: none !important;
-  }
-}
-
 /* ── Global transition on every interactive element ──────────────────────── */
 button,
 a,
