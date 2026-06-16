@@ -59,3 +59,83 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* ── Custom cursor (desktop only) ─────────────────────────────────────────── */
+@media (pointer: fine) {
+  *,
+  *:hover {
+    cursor: none !important;
+  }
+}
+
+/* ── Global transition on every interactive element ──────────────────────── */
+button,
+a,
+[role="button"],
+input,
+select,
+textarea {
+  transition-property: transform, box-shadow, background-color, border-color, color, opacity;
+  transition-duration: 150ms;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Button press — every shadcn button gets a physical press feel */
+button:active:not(:disabled),
+[role="button"]:active {
+  transform: scale(0.96) !important;
+}
+
+/* ── Scrollbar styling ────────────────────────────────────────────────────── */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--border));
+  border-radius: 99px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground) / 0.5);
+}
+
+/* ── Selection color ─────────────────────────────────────────────────────── */
+::selection {
+  background: hsl(var(--primary) / 0.15);
+  color: hsl(var(--primary));
+}
+
+/* ── Smooth focus rings ──────────────────────────────────────────────────── */
+:focus-visible {
+  outline: 2px solid hsl(var(--primary) / 0.6);
+  outline-offset: 2px;
+  border-radius: var(--radius);
+}
+
+/* ── Keyframe: shimmer loading ───────────────────────────────────────────── */
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position:  200% 0; }
+}
+.shimmer {
+  background: linear-gradient(
+    90deg,
+    hsl(var(--muted)) 25%,
+    hsl(var(--muted-foreground) / 0.08) 50%,
+    hsl(var(--muted)) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.6s infinite;
+}
+
+/* ── Keyframe: float badge pulse ─────────────────────────────────────────── */
+@keyframes badge-pulse {
+  0%, 100% { transform: scale(1); }
+  50%       { transform: scale(1.08); }
+}
+.badge-pulse {
+  animation: badge-pulse 2s ease-in-out infinite;
+}

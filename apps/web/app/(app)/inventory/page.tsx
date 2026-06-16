@@ -16,6 +16,7 @@ import { useBranch } from '@/hooks/useBranch'
 import { createClient } from '@/lib/supabase/client'
 import { getInventory } from '@medlink/data-client'
 import { formatCurrency } from '@/lib/formatCurrency'
+import { StaggerGrid, StaggerItem, HoverCard, SlideInRow, FadeUp } from '@/components/ui/motion-primitives'
 import type { InventoryWithBatches } from '@medlink/data-client'
 
 type StockFilter = 'all' | 'in_stock' | 'low_stock' | 'out_of_stock' | 'expiring'
@@ -129,12 +130,20 @@ export default function InventoryPage() {
       )}
 
       {/* Summary cards */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <SummaryCard label="Total Products" value={String(totalProducts)} icon={Package} loading={loading} />
-        <SummaryCard label="Total Value" value={formatCurrency(totalValue, currency)} icon={Package} loading={loading} />
-        <SummaryCard label="Low Stock" value={String(lowStockCount)} icon={AlertTriangle} accent={lowStockCount > 0 ? 'amber' : undefined} loading={loading} />
-        <SummaryCard label="Expiring Soon" value={String(expiringSoonCount)} icon={Clock} accent={expiringSoonCount > 0 ? 'amber' : undefined} loading={loading} />
-      </div>
+      <StaggerGrid className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        {[
+          { label: 'Total Products', value: String(totalProducts), icon: Package },
+          { label: 'Total Value', value: formatCurrency(totalValue, currency), icon: Package },
+          { label: 'Low Stock', value: String(lowStockCount), icon: AlertTriangle, accent: lowStockCount > 0 ? 'amber' as const : undefined },
+          { label: 'Expiring Soon', value: String(expiringSoonCount), icon: Clock, accent: expiringSoonCount > 0 ? 'amber' as const : undefined },
+        ].map(card => (
+          <StaggerItem key={card.label}>
+            <HoverCard className="h-full">
+              <SummaryCard {...card} loading={loading} />
+            </HoverCard>
+          </StaggerItem>
+        ))}
+      </StaggerGrid>
 
       {/* Search + Filters */}
       <div className="flex flex-col gap-3 sm:flex-row">
@@ -198,7 +207,7 @@ export default function InventoryPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                {filtered.map(row => {
+                {filtered.map((row, idx) => {
                   const isLowStock = row.available_stock <= row.reorder_point
                   const isOut = row.available_stock === 0
                   const isExpiring = row.days_to_nearest_expiry !== null
@@ -206,7 +215,7 @@ export default function InventoryPage() {
                     && row.days_to_nearest_expiry <= 90
 
                   return (
-                    <tr key={row.inventory_id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
+                    <SlideInRow key={row.inventory_id} index={idx}>
                       <td className="px-5 py-4">
                         <p className="font-medium text-slate-900 dark:text-slate-100">{row.medication_name}</p>
                         {row.generic_name && (
@@ -277,7 +286,7 @@ export default function InventoryPage() {
                           <PackagePlus className="h-4 w-4" />
                         </button>
                       </td>
-                    </tr>
+                    </SlideInRow>
                   )
                 })}
               </tbody>

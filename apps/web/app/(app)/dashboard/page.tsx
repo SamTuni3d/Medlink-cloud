@@ -14,6 +14,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
+import { StaggerGrid, StaggerItem, HoverCard, FadeUp, FadeIn } from '@/components/ui/motion-primitives'
 import { useBranch } from '@/hooks/useBranch'
 import { useAuth } from '@/providers/auth-provider'
 import { useDashboardStats } from '@/hooks/useDashboardStats'
@@ -223,37 +224,23 @@ export default function DashboardPage() {
       )}
 
       {/* KPI cards */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <KpiCard
-          label="Sales Today"
-          icon={TrendingUp}
-          value={loading ? null : formatCurrency(stats?.salesTodayAmount ?? 0, currency)}
-          loading={loading}
-        />
-        <KpiCard
-          label="Gross Profit (Month)"
-          icon={TrendingUp}
-          value={loading ? null : formatCurrency(stats?.grossProfitMonth ?? 0, currency)}
-          loading={loading}
-        />
-        <KpiCard
-          label="Inventory Value"
-          icon={Package}
-          value={loading ? null : formatCurrency(stats?.inventoryValue ?? 0, currency)}
-          loading={loading}
-        />
-        <KpiCard
-          label="Action Needed"
-          icon={AlertCircle}
-          value={loading ? null : String(actionNeeded)}
-          sub={loading ? undefined : `${stats?.lowStockCount ?? 0} Low Stock • ${stats?.expiringSoonCount ?? 0} Expiring`}
-          urgent={actionNeeded > 0}
-          loading={loading}
-        />
-      </div>
+      <StaggerGrid className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {[
+          { label: 'Sales Today', icon: TrendingUp, value: loading ? null : formatCurrency(stats?.salesTodayAmount ?? 0, currency) },
+          { label: 'Gross Profit (Month)', icon: TrendingUp, value: loading ? null : formatCurrency(stats?.grossProfitMonth ?? 0, currency) },
+          { label: 'Inventory Value', icon: Package, value: loading ? null : formatCurrency(stats?.inventoryValue ?? 0, currency) },
+          { label: 'Action Needed', icon: AlertCircle, value: loading ? null : String(actionNeeded), sub: loading ? undefined : `${stats?.lowStockCount ?? 0} Low Stock • ${stats?.expiringSoonCount ?? 0} Expiring`, urgent: actionNeeded > 0 },
+        ].map((card) => (
+          <StaggerItem key={card.label}>
+            <HoverCard className="h-full">
+              <KpiCard loading={loading} {...card} />
+            </HoverCard>
+          </StaggerItem>
+        ))}
+      </StaggerGrid>
 
       {/* Chart + AI Insights row */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+      <FadeIn delay={0.25} className="grid grid-cols-1 gap-4 lg:grid-cols-3">
 
         {/* 7-day line chart */}
         <Card className="border-slate-200 dark:border-slate-700 shadow-sm lg:col-span-2">
@@ -360,10 +347,10 @@ export default function DashboardPage() {
             )}
           </CardContent>
         </Card>
-      </div>
+      </FadeIn>
 
       {/* Recent sales */}
-      <Card className="border-slate-200 dark:border-slate-700 shadow-sm">
+      <FadeIn delay={0.35}><Card className="border-slate-200 dark:border-slate-700 shadow-sm">
         <CardHeader className="pb-2">
           <div className="flex items-center justify-between">
             <div>
@@ -434,7 +421,7 @@ export default function DashboardPage() {
             </div>
           )}
         </CardContent>
-      </Card>
+      </Card></FadeIn>
 
     </div>
   )

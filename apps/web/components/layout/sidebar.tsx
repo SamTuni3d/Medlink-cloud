@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { motion } from 'framer-motion'
 import {
   LayoutDashboard, Package, ShoppingCart, BarChart2,
   Users, Settings, Tablet, ChevronRight, Bell, Truck, FileText, type LucideIcon,
@@ -96,28 +97,49 @@ export function SidebarNav({ onNavigate }: SidebarNavProps) {
 
   return (
     <nav className="flex flex-col gap-0.5 px-3">
-      {visibleItems.map(({ href, label, icon: Icon }) => {
+      {visibleItems.map(({ href, label, icon: Icon }, i) => {
         const active = pathname === href || pathname.startsWith(href + '/')
         return (
-          <Link
+          <motion.div
             key={href}
-            href={href}
-            onClick={onNavigate}
-            className={cn(
-              'group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-150',
-              active
-                ? 'bg-primary text-primary-foreground shadow-sm'
-                : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-100'
-            )}
+            initial={{ opacity: 0, x: -12 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.25, delay: i * 0.05, ease: 'easeOut' }}
+            whileHover={{ x: 3 }}
+            whileTap={{ scale: 0.97 }}
           >
-            <Icon className={cn(
-              'h-4 w-4 shrink-0 transition-transform duration-150',
-              active ? 'text-primary-foreground' : 'text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300',
-              'group-hover:scale-110'
-            )} />
-            <span className="flex-1">{label}</span>
-            {active && <ChevronRight className="h-3 w-3 opacity-60" />}
-          </Link>
+            <Link
+              href={href}
+              onClick={onNavigate}
+              className={cn(
+                'group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors duration-150',
+                active
+                  ? 'bg-primary text-primary-foreground shadow-sm'
+                  : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-100'
+              )}
+            >
+              <motion.div
+                animate={{ rotate: active ? 0 : 0 }}
+                whileHover={{ scale: 1.15, rotate: 5 }}
+                transition={{ duration: 0.15 }}
+              >
+                <Icon className={cn(
+                  'h-4 w-4 shrink-0',
+                  active ? 'text-primary-foreground' : 'text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300',
+                )} />
+              </motion.div>
+              <span className="flex-1">{label}</span>
+              {active && (
+                <motion.div
+                  initial={{ scale: 0, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 0.6 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <ChevronRight className="h-3 w-3" />
+                </motion.div>
+              )}
+            </Link>
+          </motion.div>
         )
       })}
     </nav>
