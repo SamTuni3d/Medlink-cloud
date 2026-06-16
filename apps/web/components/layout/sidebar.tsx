@@ -181,14 +181,9 @@ export function Sidebar() {
   return (
     <aside className="hidden w-60 flex-col border-r border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900 md:flex">
       {/* Brand */}
-      <div className="flex h-16 items-center gap-2.5 border-b border-slate-200 dark:border-slate-700 px-5">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary shadow-sm">
-          <span className="text-sm font-bold text-white">M</span>
-        </div>
-        <div>
-          <p className="text-sm font-bold text-slate-900 dark:text-slate-100 leading-none">MedLink</p>
-          <p className="text-[10px] font-medium text-slate-400 uppercase tracking-wider leading-none mt-0.5">Cloud</p>
-        </div>
+      <div className="flex h-16 items-center border-b border-slate-200 dark:border-slate-700 px-5">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/logo.svg" alt="MedLink" height={38} className="h-[38px] w-auto" />
       </div>
 
       {/* Nav */}
