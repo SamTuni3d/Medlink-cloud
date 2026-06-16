@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
   LayoutDashboard, Package, ShoppingCart, BarChart2,
-  Users, Settings, Tablet, LogOut, ChevronRight, type LucideIcon,
+  Users, Settings, Tablet, ChevronRight, Bell, Truck, FileText, type LucideIcon,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/providers/auth-provider'
@@ -39,16 +39,34 @@ const NAV_ITEMS: NavItem[] = [
     roles: ['super_admin','org_admin','branch_manager','pharmacist','inventory_manager','auditor'],
   },
   {
+    href: '/prescriptions',
+    label: 'Prescriptions',
+    icon: FileText,
+    roles: ['super_admin','org_admin','branch_manager','pharmacist'],
+  },
+  {
     href: '/sales',
     label: 'Sales',
     icon: ShoppingCart,
     roles: ['super_admin','org_admin','branch_manager','pharmacist','cashier','auditor'],
   },
   {
+    href: '/procurement',
+    label: 'Procurement',
+    icon: Truck,
+    roles: ['super_admin','org_admin','branch_manager','inventory_manager'],
+  },
+  {
     href: '/reports',
     label: 'Reports',
     icon: BarChart2,
     roles: ['super_admin','org_admin','branch_manager','inventory_manager','auditor'],
+  },
+  {
+    href: '/notifications',
+    label: 'Notifications',
+    icon: Bell,
+    roles: ['super_admin','org_admin','branch_manager','pharmacist','inventory_manager','auditor'],
   },
   {
     href: '/users',
