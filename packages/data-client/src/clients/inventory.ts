@@ -2,6 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { z } from 'zod'
 import { ok, err, type Result } from '../lib/result'
 import { toAppError } from '../lib/errors'
+import { createMedication } from './medications'
 import {
   InventoryWithBatchesSchema,
   InventoryBatchSchema,
@@ -209,6 +210,116 @@ export async function getStockMovements(
     if (!parsed.success) return err(toAppError(parsed.error))
 
     return ok(parsed.data)
+  } catch (e) {
+    return err(toAppError(e))
+  }
+}
+
+export interface AddMedicationWithStockInput {
+  organizationId: string
+  branchId: string
+  performedBy: string
+  // Medication master fields
+  name: string
+  genericName?: string | null
+  brandName?: string | null
+  category?: string | null
+  strength?: string | null
+  dosageForm?: string | null
+  barcode?: string | null
+  reorderPoint?: number
+  sellingPrice?: number
+  currencyCode?: string
+  // Batch / stock fields
+  batchNumber?: string | null
+  expiryDate?: string | null
+  purchasePrice?: number
+  qtyInStock?: number
+}
+
+/**
+ * Creates a new medication, an inventory row for the branch, an optional
+ * inventory batch, and — if qty > 0 — an opening-stock movement.
+ *
+ * Rule 3: inventory.current_stock is NEVER set directly; the Postgres trigger
+ * trg_stock_movement_update_inventory handles it via the stock_movements insert.
+ */
+export async function addMedicationWithStock(
+  client: SupabaseClient,
+  input: AddMedicationWithStockInput
+): Promise<Result<{ medicationId: string }>> {
+  try {
+    const {
+      organizationId, branchId, performedBy,
+      name, genericName, brandName, category, strength,
+      dosageForm, barcode,
+      reorderPoint = 10, sellingPrice = 0,
+      currencyCode = 'GHS',
+      batchNumber, expiryDate, purchasePrice = 0,
+      qtyInStock = 0,
+    } = input
+
+    // 1. Create medication in medications_master
+    const medResult = await createMedication(client, {
+      organization_id: organizationId,
+      name: name.trim(),
+      generic_name: genericName ?? null,
+      brand_name: brandName ?? null,
+      dosage_form: dosageForm?.trim() || 'Other',
+      strength: strength ?? null,
+      unit_of_measure: 'units',
+      barcode: barcode ?? null,
+      category: category ?? null,
+      requires_prescription: false,
+      reorder_point: reorderPoint,
+      reorder_quantity: Math.max(reorderPoint, 1),
+      selling_price: sellingPrice,
+      currency_code: currencyCode as 'GHS',
+    })
+    if (!medResult.ok) return medResult
+
+    const medicationId = medResult.data.id
+
+    // 2. Create inventory row for this branch (current_stock starts at 0)
+    const { error: invError } = await client
+      .from('inventory')
+      .insert({ organization_id: organizationId, branch_id: branchId, medication_id: medicationId })
+
+    if (invError) return err(toAppError(invError))
+
+    // 3. If we have a batch or stock, create the batch record
+    if (qtyInStock > 0 || batchNumber || expiryDate) {
+      const qty = Math.max(qtyInStock, 1)
+      const batchResult = await receiveBatch(client, {
+        organization_id: organizationId,
+        branch_id: branchId,
+        medication_id: medicationId,
+        batch_number: batchNumber?.trim() || `OPEN-${Date.now()}`,
+        expiry_date: expiryDate ?? null,
+        quantity_received: qty,
+        cost_price: purchasePrice,
+        currency_code: currencyCode,
+        created_by: performedBy,
+      })
+      if (!batchResult.ok) return batchResult
+
+      // 4. Record opening stock movement — trigger updates current_stock
+      if (qtyInStock > 0) {
+        const movResult = await recordStockMovement(client, {
+          organization_id: organizationId,
+          branch_id: branchId,
+          medication_id: medicationId,
+          batch_id: batchResult.data.id,
+          movement_type: 'opening_stock',
+          delta: qtyInStock,
+          notes: 'Initial stock entry',
+          performed_by: performedBy,
+        })
+        if (!movResult.ok) return movResult
+      }
+    }
+
+    return ok({ medicationId })
   } catch (e) {
     return err(toAppError(e))
   }

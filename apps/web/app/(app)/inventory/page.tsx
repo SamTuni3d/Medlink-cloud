@@ -3,23 +3,61 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import {
   Package, Search, RefreshCw, AlertTriangle, Clock,
-  PackagePlus, PackageSearch,
+  PackagePlus, PackageSearch, X,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+} from '@/components/ui/dialog'
 import { useBranch } from '@/hooks/useBranch'
+import { useAuth } from '@/providers/auth-provider'
+import { useToast } from '@/hooks/use-toast'
 import { createClient } from '@/lib/supabase/client'
-import { getInventory } from '@medlink/data-client'
+import { getInventory, addMedicationWithStock } from '@medlink/data-client'
 import { formatCurrency } from '@/lib/formatCurrency'
 import { StaggerGrid, StaggerItem, HoverCard, SlideInRow } from '@/components/ui/motion-primitives'
 import type { InventoryWithBatches } from '@medlink/data-client'
 
 type StockFilter = 'all' | 'in_stock' | 'low_stock' | 'out_of_stock' | 'expiring'
 
+const DOSAGE_FORMS = [
+  'Tablet', 'Capsule', 'Injection', 'Syrup', 'Drops', 'Cream',
+  'Ointment', 'Gel', 'Sachet', 'Solution', 'Powder', 'Suspension',
+  'Inhaler', 'IV Fluid', 'Lotion', 'Syringe', 'Spray', 'Suppository',
+  'Patch', 'Other',
+]
+
+const CATEGORIES = [
+  'Analgesics', 'Antibiotics', 'Antihistamines', 'Antimalarials',
+  'Antifungals', 'Cardiovascular', 'Contraceptives', 'Dermatology',
+  'Diabetes', 'Gastrointestinal', 'General', 'IV Fluids',
+  'Medical Supplies', 'Neurology/Psychiatry', 'Ophthalmology',
+  'Paediatrics', 'Respiratory', 'Vitamins & Supplements',
+]
+
+const EMPTY_FORM = {
+  name: '',
+  genericName: '',
+  brandName: '',
+  category: '',
+  strength: '',
+  dosageForm: '',
+  batchNumber: '',
+  expiryDate: '',
+  purchasePrice: '0',
+  sellingPrice: '0',
+  qtyInStock: '0',
+  reorderLevel: '10',
+  barcode: '',
+}
+
+// ── Summary card ──────────────────────────────────────────────────────────────
 function SummaryCard({
   label, value, icon: Icon, accent, loading,
 }: {
@@ -35,7 +73,7 @@ function SummaryCard({
         <p className="text-sm text-slate-500 dark:text-slate-400">{label}</p>
         <Icon className={`h-5 w-5 ${
           accent === 'amber' ? 'text-amber-400' :
-          accent === 'red' ? 'text-red-400' :
+          accent === 'red'   ? 'text-red-400' :
           'text-slate-300 dark:text-slate-600'
         }`} />
       </div>
@@ -48,14 +86,280 @@ function SummaryCard({
   )
 }
 
+// ── Add Medication Modal ──────────────────────────────────────────────────────
+function AddMedicationModal({
+  open,
+  onClose,
+  onAdded,
+  organizationId,
+  branchId,
+  userId,
+  currency,
+}: {
+  open: boolean
+  onClose: () => void
+  onAdded: () => void
+  organizationId: string
+  branchId: string
+  userId: string
+  currency: string
+}) {
+  const [form, setForm] = useState(EMPTY_FORM)
+  const [saving, setSaving] = useState(false)
+  const [formError, setFormError] = useState<string | null>(null)
+  const { toast } = useToast()
+
+  function set(key: keyof typeof EMPTY_FORM, value: string) {
+    setForm(prev => ({ ...prev, [key]: value }))
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!form.name.trim()) { setFormError('Product name is required'); return }
+    setFormError(null)
+    setSaving(true)
+
+    const result = await addMedicationWithStock(createClient(), {
+      organizationId,
+      branchId,
+      performedBy: userId,
+      name: form.name.trim(),
+      genericName: form.genericName.trim() || null,
+      brandName: form.brandName.trim() || null,
+      category: form.category || null,
+      strength: form.strength.trim() || null,
+      dosageForm: form.dosageForm || null,
+      barcode: form.barcode.trim() || null,
+      reorderPoint: Math.max(0, parseInt(form.reorderLevel) || 10),
+      sellingPrice: parseFloat(form.sellingPrice) || 0,
+      currencyCode: currency,
+      batchNumber: form.batchNumber.trim() || null,
+      expiryDate: form.expiryDate || null,
+      purchasePrice: parseFloat(form.purchasePrice) || 0,
+      qtyInStock: Math.max(0, parseInt(form.qtyInStock) || 0),
+    })
+
+    setSaving(false)
+
+    if (!result.ok) {
+      setFormError(result.error.message)
+      return
+    }
+
+    toast({ title: 'Medication added', description: `${form.name.trim()} was added to inventory.` })
+    setForm(EMPTY_FORM)
+    onAdded()
+    onClose()
+  }
+
+  function handleClose() {
+    if (saving) return
+    setForm(EMPTY_FORM)
+    setFormError(null)
+    onClose()
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={v => { if (!v) handleClose() }}>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="text-lg font-semibold">Add Medication</DialogTitle>
+          <button
+            onClick={handleClose}
+            className="absolute right-4 top-4 rounded-sm p-1 opacity-70 hover:opacity-100 transition-opacity"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </DialogHeader>
+
+        <form onSubmit={e => { void handleSubmit(e) }} className="space-y-4 pt-2">
+          {/* Row 1: Name + Generic */}
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="med-name">Product Name <span className="text-destructive">*</span></Label>
+              <Input
+                id="med-name"
+                value={form.name}
+                onChange={e => set('name', e.target.value)}
+                placeholder="e.g. Paracetamol 500mg"
+                autoFocus
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="med-generic">Generic Name</Label>
+              <Input
+                id="med-generic"
+                value={form.genericName}
+                onChange={e => set('genericName', e.target.value)}
+                placeholder="e.g. Acetaminophen"
+              />
+            </div>
+          </div>
+
+          {/* Row 2: Brand + Category */}
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="med-brand">Brand Name</Label>
+              <Input
+                id="med-brand"
+                value={form.brandName}
+                onChange={e => set('brandName', e.target.value)}
+                placeholder="e.g. Panadol"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Category</Label>
+              <Select value={form.category} onValueChange={v => set('category', v)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select category" />
+                </SelectTrigger>
+                <SelectContent>
+                  {CATEGORIES.map(c => (
+                    <SelectItem key={c} value={c}>{c}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          {/* Row 3: Strength + Dosage form */}
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="med-strength">Strength</Label>
+              <Input
+                id="med-strength"
+                value={form.strength}
+                onChange={e => set('strength', e.target.value)}
+                placeholder="e.g. 500mg"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Dosage Form</Label>
+              <Select value={form.dosageForm} onValueChange={v => set('dosageForm', v)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select form" />
+                </SelectTrigger>
+                <SelectContent>
+                  {DOSAGE_FORMS.map(f => (
+                    <SelectItem key={f} value={f}>{f}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          {/* Row 4: Batch + Expiry */}
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="med-batch">Batch Number</Label>
+              <Input
+                id="med-batch"
+                value={form.batchNumber}
+                onChange={e => set('batchNumber', e.target.value)}
+                placeholder="e.g. BT-2025-001"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="med-expiry">Expiry Date</Label>
+              <Input
+                id="med-expiry"
+                type="date"
+                value={form.expiryDate}
+                onChange={e => set('expiryDate', e.target.value)}
+              />
+            </div>
+          </div>
+
+          {/* Row 5: Purchase + Selling price */}
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="med-cost">Purchase Price ({currency === 'GHS' ? '₵' : currency})</Label>
+              <Input
+                id="med-cost"
+                type="number"
+                min="0"
+                step="0.01"
+                value={form.purchasePrice}
+                onChange={e => set('purchasePrice', e.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="med-sell">Selling Price ({currency === 'GHS' ? '₵' : currency})</Label>
+              <Input
+                id="med-sell"
+                type="number"
+                min="0"
+                step="0.01"
+                value={form.sellingPrice}
+                onChange={e => set('sellingPrice', e.target.value)}
+              />
+            </div>
+          </div>
+
+          {/* Row 6: Qty + Reorder */}
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="med-qty">Qty in Stock</Label>
+              <Input
+                id="med-qty"
+                type="number"
+                min="0"
+                value={form.qtyInStock}
+                onChange={e => set('qtyInStock', e.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="med-reorder">Reorder Level</Label>
+              <Input
+                id="med-reorder"
+                type="number"
+                min="0"
+                value={form.reorderLevel}
+                onChange={e => set('reorderLevel', e.target.value)}
+              />
+            </div>
+          </div>
+
+          {/* Row 7: Barcode */}
+          <div className="space-y-1.5">
+            <Label htmlFor="med-barcode">Barcode (optional)</Label>
+            <Input
+              id="med-barcode"
+              value={form.barcode}
+              onChange={e => set('barcode', e.target.value)}
+              placeholder="Scan or enter barcode"
+            />
+          </div>
+
+          {formError && (
+            <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{formError}</p>
+          )}
+
+          <DialogFooter className="pt-2">
+            <Button type="button" variant="outline" onClick={handleClose} disabled={saving}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={saving}>
+              {saving ? 'Adding…' : 'Add Medication'}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+// ── Main page ─────────────────────────────────────────────────────────────────
 export default function InventoryPage() {
   const { activeBranch } = useBranch()
+  const { user, organizationId } = useAuth()
   const [rows, setRows] = useState<InventoryWithBatches[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('all')
   const [stockFilter, setStockFilter] = useState<StockFilter>('all')
+  const [showAddModal, setShowAddModal] = useState(false)
 
   const load = useCallback(async () => {
     if (!activeBranch) { setLoading(false); return }
@@ -82,19 +386,18 @@ export default function InventoryPage() {
       || (r.barcode ?? '').toLowerCase().includes(q)
     const matchCat = categoryFilter === 'all' || r.category === categoryFilter
     const matchStock =
-      stockFilter === 'all' ? true :
-      stockFilter === 'in_stock' ? r.available_stock > r.reorder_point :
-      stockFilter === 'low_stock' ? (r.available_stock > 0 && r.available_stock <= r.reorder_point) :
-      stockFilter === 'out_of_stock' ? r.available_stock === 0 :
-      stockFilter === 'expiring' ? (r.days_to_nearest_expiry !== null && r.days_to_nearest_expiry > 0 && r.days_to_nearest_expiry <= 90) :
+      stockFilter === 'all'         ? true :
+      stockFilter === 'in_stock'    ? r.available_stock > r.reorder_point :
+      stockFilter === 'low_stock'   ? (r.available_stock > 0 && r.available_stock <= r.reorder_point) :
+      stockFilter === 'out_of_stock'? r.available_stock === 0 :
+      stockFilter === 'expiring'    ? (r.days_to_nearest_expiry !== null && r.days_to_nearest_expiry > 0 && r.days_to_nearest_expiry <= 90) :
       true
     return matchSearch && matchCat && matchStock
   }), [rows, search, categoryFilter, stockFilter])
 
-  // Summary stats
-  const totalProducts = rows.length
-  const totalValue = rows.reduce((sum, r) => sum + r.available_stock * r.selling_price, 0)
-  const lowStockCount = rows.filter(r => r.available_stock <= r.reorder_point).length
+  const totalProducts     = rows.length
+  const totalValue        = rows.reduce((sum, r) => sum + r.available_stock * r.selling_price, 0)
+  const lowStockCount     = rows.filter(r => r.available_stock <= r.reorder_point).length
   const expiringSoonCount = rows.filter(
     r => r.days_to_nearest_expiry !== null && r.days_to_nearest_expiry > 0 && r.days_to_nearest_expiry <= 90
   ).length
@@ -114,7 +417,7 @@ export default function InventoryPage() {
             <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
             Refresh
           </Button>
-          <Button size="sm">
+          <Button size="sm" onClick={() => setShowAddModal(true)} disabled={!activeBranch}>
             <PackagePlus className="mr-2 h-4 w-4" />
             Add Medication
           </Button>
@@ -131,10 +434,10 @@ export default function InventoryPage() {
       {/* Summary cards */}
       <StaggerGrid className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         {[
-          { label: 'Total Products', value: String(totalProducts), icon: Package },
-          { label: 'Total Value', value: formatCurrency(totalValue, currency), icon: Package },
-          { label: 'Low Stock', value: String(lowStockCount), icon: AlertTriangle, accent: lowStockCount > 0 ? 'amber' as const : undefined },
-          { label: 'Expiring Soon', value: String(expiringSoonCount), icon: Clock, accent: expiringSoonCount > 0 ? 'amber' as const : undefined },
+          { label: 'Total Products',  value: String(totalProducts),                    icon: Package },
+          { label: 'Total Value',     value: formatCurrency(totalValue, currency),      icon: Package },
+          { label: 'Low Stock',       value: String(lowStockCount),    icon: AlertTriangle, accent: lowStockCount > 0     ? 'amber' as const : undefined },
+          { label: 'Expiring Soon',   value: String(expiringSoonCount),icon: Clock,         accent: expiringSoonCount > 0 ? 'amber' as const : undefined },
         ].map(card => (
           <StaggerItem key={card.label}>
             <HoverCard className="h-full">
@@ -208,7 +511,7 @@ export default function InventoryPage() {
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                 {filtered.map((row, idx) => {
                   const isLowStock = row.available_stock <= row.reorder_point
-                  const isOut = row.available_stock === 0
+                  const isOut      = row.available_stock === 0
                   const isExpiring = row.days_to_nearest_expiry !== null
                     && row.days_to_nearest_expiry > 0
                     && row.days_to_nearest_expiry <= 90
@@ -226,9 +529,7 @@ export default function InventoryPage() {
                           <span className="inline-flex items-center rounded-md bg-slate-100 dark:bg-slate-800 px-2 py-0.5 text-xs font-medium text-slate-700 dark:text-slate-300">
                             {row.category}
                           </span>
-                        ) : (
-                          <span className="text-slate-400">—</span>
-                        )}
+                        ) : <span className="text-slate-400">—</span>}
                       </td>
                       <td className="hidden px-5 py-4 lg:table-cell">
                         {row.strength && (
@@ -245,18 +546,14 @@ export default function InventoryPage() {
                               })}
                             </p>
                             {isExpiring && (
-                              <p className="text-[10px] text-orange-500 mt-0.5">
-                                {row.days_to_nearest_expiry}d left
-                              </p>
+                              <p className="text-[10px] text-orange-500 mt-0.5">{row.days_to_nearest_expiry}d left</p>
                             )}
                           </>
-                        ) : (
-                          <span className="text-slate-400 text-xs">—</span>
-                        )}
+                        ) : <span className="text-slate-400 text-xs">—</span>}
                       </td>
                       <td className="px-5 py-4">
                         <p className={`font-semibold text-base ${
-                          isOut ? 'text-red-600 dark:text-red-400' :
+                          isOut      ? 'text-red-600 dark:text-red-400' :
                           isLowStock ? 'text-amber-600 dark:text-amber-400' :
                           'text-slate-900 dark:text-slate-100'
                         }`}>
@@ -296,6 +593,19 @@ export default function InventoryPage() {
           </div>
         )}
       </div>
+
+      {/* Add Medication Modal */}
+      {activeBranch && organizationId && user && (
+        <AddMedicationModal
+          open={showAddModal}
+          onClose={() => setShowAddModal(false)}
+          onAdded={() => void load()}
+          organizationId={organizationId}
+          branchId={activeBranch.id}
+          userId={user.id}
+          currency={currency}
+        />
+      )}
     </div>
   )
 }
