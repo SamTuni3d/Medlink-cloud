@@ -2,8 +2,10 @@
 
 import { redirect } from 'next/navigation'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { createClient } from '@/lib/supabase/server'
 import {
   createOrganization,
+  createBranch,
   createUserRecord,
   getRoleIdByName,
   assignUserRole,
@@ -22,11 +24,11 @@ export async function registerOrganization(formData: FormData) {
     return { error: e instanceof Error ? e.message : 'Server configuration error' }
   }
 
-  // 1. Create the auth user (unconfirmed — verification email sent by Supabase)
+  // 1. Create the auth user (auto-confirmed — no email verification required for local/beta)
   const { data: authData, error: authError } = await admin.auth.admin.createUser({
     email,
     password,
-    email_confirm: false,
+    email_confirm: true,
     user_metadata: { full_name: fullName },
   })
 
@@ -50,7 +52,18 @@ export async function registerOrganization(formData: FormData) {
 
   const org = orgResult.data
 
-  // 3. Create the public.users row (links auth.users.id → org)
+  // 3. Create a default main branch for the organization
+  const branchResult = await createBranch(admin, {
+    organization_id: org.id,
+    name: `${organizationName} — Main Branch`,
+  })
+
+  if (!branchResult.ok) {
+    await admin.auth.admin.deleteUser(authUserId)
+    return { error: branchResult.error.message }
+  }
+
+  // 5. Create the public.users row (links auth.users.id → org)
   const userResult = await createUserRecord(admin, {
     id: authUserId,
     organization_id: org.id,
@@ -63,7 +76,7 @@ export async function registerOrganization(formData: FormData) {
     return { error: userResult.error.message }
   }
 
-  // 4. Resolve the org_admin role UUID and assign it
+  // 6. Resolve the org_admin role UUID and assign it
   const roleResult = await getRoleIdByName(admin, 'org_admin')
   if (!roleResult.ok) {
     await admin.auth.admin.deleteUser(authUserId)
@@ -83,7 +96,7 @@ export async function registerOrganization(formData: FormData) {
     return { error: assignResult.error.message }
   }
 
-  // 5. Embed org_id and roles in user_metadata so useAuth() can read them instantly
+  // 7. Embed org_id and roles in user_metadata so useAuth() can read them instantly
   await admin.auth.admin.updateUserById(authUserId, {
     user_metadata: {
       full_name: fullName,
@@ -92,5 +105,9 @@ export async function registerOrganization(formData: FormData) {
     },
   })
 
-  redirect('/verify-email')
+  // 8. Auto-sign-in so the user lands on the dashboard immediately
+  const serverClient = await createClient()
+  await serverClient.auth.signInWithPassword({ email, password })
+
+  redirect('/dashboard')
 }
