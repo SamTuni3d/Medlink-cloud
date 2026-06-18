@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import {
   Search,
   Plus,
@@ -10,6 +10,7 @@ import {
   RefreshCw,
   CloudOff,
   Loader2,
+  ScanBarcode,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -24,6 +25,7 @@ import { useAuth } from '@/providers/auth-provider'
 import { completeSale } from '@/lib/pos/completeSale'
 import { db } from '@/lib/dexie/db'
 import { formatCurrency } from '@/lib/formatCurrency'
+import { useToast } from '@/hooks/use-toast'
 import type { PosProduct } from '@/hooks/usePosData'
 
 // Metadata can only be exported from a Server Component, so we skip it here.
@@ -194,13 +196,12 @@ interface ProductCardProps {
 }
 
 function ProductCard({ product, onAdd }: ProductCardProps) {
-  const outOfStock = product.available_stock <= 0
+  const noStock = product.available_stock <= 0
 
   return (
     <button
-      onClick={() => !outOfStock && onAdd(product)}
-      disabled={outOfStock}
-      className={`group relative rounded-xl border bg-card p-4 text-left transition-all hover:border-primary hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50`}
+      onClick={() => onAdd(product)}
+      className="group relative rounded-xl border bg-card p-4 text-left transition-all hover:border-primary hover:shadow-md"
     >
       {product.requires_prescription && (
         <Badge variant="secondary" className="absolute right-2 top-2 text-xs">
@@ -214,8 +215,8 @@ function ProductCard({ product, onAdd }: ProductCardProps) {
       <p className="mt-2 text-base font-bold text-primary">
         {formatCurrency(product.selling_price, product.currency_code)}
       </p>
-      <p className={`text-xs ${outOfStock ? 'text-destructive' : 'text-muted-foreground'}`}>
-        {outOfStock ? 'Out of stock' : `${product.available_stock} ${product.unit_of_measure}`}
+      <p className={`text-xs ${noStock ? 'text-amber-500' : 'text-muted-foreground'}`}>
+        {noStock ? 'Stock not entered' : `${product.available_stock} ${product.unit_of_measure}`}
       </p>
     </button>
   )
@@ -229,7 +230,10 @@ export default function POSPage() {
   const { items, totals, addItem, removeItem, updateQty, clearCart } = useCart()
   const { products, loading, refresh } = usePosData(activeBranch?.id ?? null)
   const { pendingCount, isSyncing } = useSyncQueue()
+  const { toast } = useToast()
 
+  const barcodeRef = useRef<HTMLInputElement>(null)
+  const [barcodeInput, setBarcodeInput] = useState('')
   const [search, setSearch] = useState('')
   const [showPayment, setShowPayment] = useState(false)
   const [receipt, setReceipt] = useState<null | {
@@ -240,6 +244,11 @@ export default function POSPage() {
     currencyCode: string
   }>(null)
   const [isCompleting, setIsCompleting] = useState(false)
+
+  // Auto-focus the barcode input when the page mounts (works with USB scanners)
+  useEffect(() => {
+    barcodeRef.current?.focus()
+  }, [])
 
   const filtered = products.filter(p => {
     if (!search) return true
@@ -275,6 +284,43 @@ export default function POSPage() {
       })
     },
     [activeBranch, addItem]
+  )
+
+  const handleBarcodeScan = useCallback(
+    async (barcode: string) => {
+      const trimmed = barcode.trim()
+      if (!trimmed) return
+
+      const product = products.find(p => p.barcode === trimmed)
+
+      if (!product) {
+        toast({
+          title: 'Barcode not found',
+          description: `No medication matched barcode "${trimmed}".`,
+          variant: 'destructive',
+        })
+        setBarcodeInput('')
+        barcodeRef.current?.focus()
+        return
+      }
+
+      if (product.available_stock <= 0) {
+        toast({
+          title: 'Out of stock',
+          description: `${product.name} has no stock available.`,
+          variant: 'destructive',
+        })
+        setBarcodeInput('')
+        barcodeRef.current?.focus()
+        return
+      }
+
+      await handleAddProduct(product)
+      toast({ title: 'Added to cart', description: product.name })
+      setBarcodeInput('')
+      barcodeRef.current?.focus()
+    },
+    [products, handleAddProduct, toast]
   )
 
   const handleConfirmPayment = useCallback(
@@ -361,6 +407,28 @@ export default function POSPage() {
       <div className="flex flex-1 overflow-hidden">
         {/* Left — product search */}
         <div className="flex flex-1 flex-col overflow-hidden border-r">
+          {/* Barcode scanner — auto-focused; USB scanners send Enter after each scan */}
+          <div className="border-b bg-amber-50/60 dark:bg-amber-900/10 px-3 py-2">
+            <div className="relative">
+              <ScanBarcode className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-amber-600 dark:text-amber-500" />
+              <Input
+                ref={barcodeRef}
+                className="pl-9 font-mono text-sm border-amber-200 dark:border-amber-800 focus-visible:ring-amber-400"
+                placeholder="Scan barcode…"
+                value={barcodeInput}
+                onChange={e => setBarcodeInput(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault()
+                    void handleBarcodeScan(barcodeInput)
+                  }
+                }}
+                autoComplete="off"
+                spellCheck={false}
+              />
+            </div>
+          </div>
+
           <div className="p-3">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -369,7 +437,6 @@ export default function POSPage() {
                 placeholder="Search by name, generic name, or barcode…"
                 value={search}
                 onChange={e => setSearch(e.target.value)}
-                autoFocus
               />
             </div>
           </div>

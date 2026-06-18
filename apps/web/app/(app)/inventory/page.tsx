@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import {
   Package, Search, RefreshCw, AlertTriangle, Clock,
-  PackagePlus, PackageSearch, X,
+  PackagePlus, PackageSearch, X, Tag, BookOpen,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -23,6 +23,8 @@ import { getInventory, addMedicationWithStock } from '@medlink/data-client'
 import { formatCurrency } from '@/lib/formatCurrency'
 import { StaggerGrid, StaggerItem, HoverCard, SlideInRow } from '@/components/ui/motion-primitives'
 import type { InventoryWithBatches } from '@medlink/data-client'
+import { updateMedicationPriceAction } from './actions'
+import ImportFromLibraryModal from '@/components/inventory/ImportFromLibraryModal'
 
 type StockFilter = 'all' | 'in_stock' | 'low_stock' | 'out_of_stock' | 'expiring'
 
@@ -349,6 +351,82 @@ function AddMedicationModal({
   )
 }
 
+// ── Edit Price Modal ──────────────────────────────────────────────────────────
+function EditPriceModal({
+  open,
+  onClose,
+  onSaved,
+  medicationId,
+  medicationName,
+  currentPrice,
+  currency,
+}: {
+  open: boolean
+  onClose: () => void
+  onSaved: (medicationId: string, newPrice: number) => void
+  medicationId: string
+  medicationName: string
+  currentPrice: number
+  currency: string
+}) {
+  const [price, setPrice] = useState(String(currentPrice))
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const { toast } = useToast()
+
+  useEffect(() => {
+    if (open) setPrice(String(currentPrice))
+  }, [open, currentPrice])
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    const parsed = parseFloat(price)
+    if (isNaN(parsed) || parsed < 0) { setError('Enter a valid price'); return }
+    setError(null)
+    setSaving(true)
+    const result = await updateMedicationPriceAction(medicationId, parsed)
+    setSaving(false)
+    if (!result.ok) { setError(result.error.message); return }
+    toast({ title: 'Price updated', description: `${medicationName} → ${formatCurrency(parsed, currency)}` })
+    onSaved(medicationId, parsed)
+    onClose()
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={v => { if (!v && !saving) onClose() }}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle className="text-base font-semibold">Edit Selling Price</DialogTitle>
+        </DialogHeader>
+        <p className="text-sm text-muted-foreground -mt-1">{medicationName}</p>
+        <form onSubmit={e => { void handleSubmit(e) }} className="space-y-4 pt-1">
+          <div className="space-y-1.5">
+            <Label htmlFor="edit-price">
+              Selling Price ({currency === 'GHS' ? '₵' : currency})
+            </Label>
+            <Input
+              id="edit-price"
+              type="number"
+              min="0"
+              step="0.01"
+              value={price}
+              onChange={e => setPrice(e.target.value)}
+              autoFocus
+            />
+          </div>
+          {error && (
+            <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</p>
+          )}
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={onClose} disabled={saving}>Cancel</Button>
+            <Button type="submit" disabled={saving}>{saving ? 'Saving…' : 'Save Price'}</Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function InventoryPage() {
   const { activeBranch } = useBranch()
@@ -359,7 +437,11 @@ export default function InventoryPage() {
   const [search, setSearch] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('all')
   const [stockFilter, setStockFilter] = useState<StockFilter>('all')
-  const [showAddModal, setShowAddModal] = useState(false)
+  const [showAddModal, setShowAddModal]       = useState(false)
+  const [showLibraryModal, setShowLibraryModal] = useState(false)
+  const [editPrice, setEditPrice] = useState<{
+    id: string; name: string; price: number
+  } | null>(null)
 
   const load = useCallback(async () => {
     if (!activeBranch) { setLoading(false); return }
@@ -416,6 +498,10 @@ export default function InventoryPage() {
           <Button variant="outline" size="sm" onClick={() => void load()} disabled={loading}>
             <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
             Refresh
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => setShowLibraryModal(true)} disabled={!activeBranch}>
+            <BookOpen className="mr-2 h-4 w-4" />
+            Import from Library
           </Button>
           <Button size="sm" onClick={() => setShowAddModal(true)} disabled={!activeBranch}>
             <PackagePlus className="mr-2 h-4 w-4" />
@@ -509,7 +595,7 @@ export default function InventoryPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                {filtered.map((row, idx) => {
+                {filtered.map((row) => {
                   const isLowStock = row.available_stock <= row.reorder_point
                   const isOut      = row.available_stock === 0
                   const isExpiring = row.days_to_nearest_expiry !== null
@@ -517,7 +603,7 @@ export default function InventoryPage() {
                     && row.days_to_nearest_expiry <= 90
 
                   return (
-                    <SlideInRow key={row.inventory_id} index={idx}>
+                    <SlideInRow key={row.inventory_id}>
                       <td className="px-5 py-4">
                         <p className="font-medium text-slate-900 dark:text-slate-100">{row.medication_name}</p>
                         {row.generic_name && (
@@ -570,17 +656,31 @@ export default function InventoryPage() {
                         </span>
                       </td>
                       <td className="hidden px-5 py-4 text-right lg:table-cell">
-                        <p className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                        <button
+                          onClick={() => setEditPrice({ id: row.medication_id, name: row.medication_name, price: row.selling_price })}
+                          className="group flex items-center justify-end gap-1.5 text-sm font-medium text-slate-700 dark:text-slate-300 hover:text-primary transition-colors"
+                          title="Edit price"
+                        >
                           {formatCurrency(row.selling_price, row.currency_code)}
-                        </p>
+                          <Tag className="h-3 w-3 opacity-0 group-hover:opacity-60 transition-opacity" />
+                        </button>
                       </td>
                       <td className="px-5 py-4 text-center">
-                        <button
-                          className="rounded-lg p-2 text-slate-400 hover:bg-primary/10 hover:text-primary dark:hover:bg-primary/20 transition-colors"
-                          title="Receive stock"
-                        >
-                          <PackagePlus className="h-4 w-4" />
-                        </button>
+                        <div className="flex items-center justify-center gap-1">
+                          <button
+                            className="rounded-lg p-2 text-slate-400 hover:bg-primary/10 hover:text-primary dark:hover:bg-primary/20 transition-colors"
+                            title="Receive stock"
+                          >
+                            <PackagePlus className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => setEditPrice({ id: row.medication_id, name: row.medication_name, price: row.selling_price })}
+                            className="rounded-lg p-2 text-slate-400 hover:bg-primary/10 hover:text-primary dark:hover:bg-primary/20 transition-colors"
+                            title="Edit selling price"
+                          >
+                            <Tag className="h-4 w-4" />
+                          </button>
+                        </div>
                       </td>
                     </SlideInRow>
                   )
@@ -594,6 +694,22 @@ export default function InventoryPage() {
         )}
       </div>
 
+      {/* Import from Library Modal */}
+      {activeBranch && organizationId && user && (
+        <ImportFromLibraryModal
+          open={showLibraryModal}
+          onClose={() => setShowLibraryModal(false)}
+          onImported={() => {
+            void load()
+            setShowLibraryModal(false)
+          }}
+          organizationId={organizationId}
+          branchId={activeBranch.id}
+          userId={user.id}
+          currencyCode={currency}
+        />
+      )}
+
       {/* Add Medication Modal */}
       {activeBranch && organizationId && user && (
         <AddMedicationModal
@@ -603,6 +719,24 @@ export default function InventoryPage() {
           organizationId={organizationId}
           branchId={activeBranch.id}
           userId={user.id}
+          currency={currency}
+        />
+      )}
+
+      {/* Edit Price Modal */}
+      {editPrice && (
+        <EditPriceModal
+          open={!!editPrice}
+          onClose={() => setEditPrice(null)}
+          onSaved={(id, newPrice) => {
+            setRows(prev => prev.map(r =>
+              r.medication_id === id ? { ...r, selling_price: newPrice } : r
+            ))
+            setEditPrice(null)
+          }}
+          medicationId={editPrice.id}
+          medicationName={editPrice.name}
+          currentPrice={editPrice.price}
           currency={currency}
         />
       )}

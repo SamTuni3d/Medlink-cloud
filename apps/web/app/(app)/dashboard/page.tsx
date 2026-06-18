@@ -238,7 +238,7 @@ export default function DashboardPage() {
       </StaggerGrid>
 
       {/* Chart + AI Insights row */}
-      <FadeIn delay={0.25} className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+      <FadeIn className="grid grid-cols-1 gap-4 lg:grid-cols-3">
 
         {/* 7-day line chart */}
         <Card className="border-slate-200 dark:border-slate-700 shadow-sm lg:col-span-2">
@@ -348,7 +348,7 @@ export default function DashboardPage() {
       </FadeIn>
 
       {/* Recent sales */}
-      <FadeIn delay={0.35}><Card className="border-slate-200 dark:border-slate-700 shadow-sm">
+      <FadeIn><Card className="border-slate-200 dark:border-slate-700 shadow-sm">
         <CardHeader className="pb-2">
           <div className="flex items-center justify-between">
             <div>

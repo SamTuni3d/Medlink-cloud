@@ -107,6 +107,82 @@ export async function getBatches(
   }
 }
 
+/**
+ * Look up a medication by barcode for the current branch.
+ * Returns null when no match is found (use maybeSingle so Supabase doesn't
+ * throw a PGRST116 "not found" error that would convert to an Err).
+ */
+export async function getMedicationByBarcode(
+  client: SupabaseClient,
+  barcode: string,
+  branchId: string
+): Promise<Result<InventoryWithBatches | null>> {
+  try {
+    const { data, error } = await client
+      .from('v_inventory_with_batches')
+      .select('*')
+      .eq('branch_id', branchId)
+      .eq('barcode', barcode.trim())
+      .maybeSingle()
+
+    if (error) return err(toAppError(error))
+    if (!data) return ok(null)
+
+    const parsed = InventoryWithBatchesSchema.safeParse(data)
+    if (!parsed.success) return err(toAppError(parsed.error))
+
+    return ok(parsed.data)
+  } catch (e) {
+    return err(toAppError(e))
+  }
+}
+
+export interface ExpiringBatch extends InventoryBatch {
+  medication_name: string
+}
+
+/** Fetch all batches with expiry dates expiring within `daysAhead` days (default 90). */
+export async function getExpiringBatches(
+  client: SupabaseClient,
+  branchId: string,
+  organizationId: string,
+  opts: { daysAhead?: number } = {}
+): Promise<Result<ExpiringBatch[]>> {
+  const days = opts.daysAhead ?? 90
+  const cutoff = new Date()
+  cutoff.setDate(cutoff.getDate() + days)
+
+  try {
+    const { data, error } = await client
+      .from('inventory_batches')
+      .select(`
+        *,
+        medications_master ( name )
+      `)
+      .eq('branch_id', branchId)
+      .eq('organization_id', organizationId)
+      .gt('quantity_remaining', 0)
+      .not('expiry_date', 'is', null)
+      .lte('expiry_date', cutoff.toISOString().slice(0, 10))
+      .gte('expiry_date', new Date().toISOString().slice(0, 10))
+      .order('expiry_date', { ascending: true })
+
+    if (error) return err(toAppError(error))
+
+    const rows = (data ?? []).map((r: Record<string, unknown>) => ({
+      ...r,
+      medication_name: (r.medications_master as { name: string } | null)?.name ?? 'Unknown',
+    }))
+
+    const parsed = z.array(InventoryBatchSchema.extend({ medication_name: z.string() })).safeParse(rows)
+    if (!parsed.success) return err(toAppError(parsed.error))
+
+    return ok(parsed.data as ExpiringBatch[])
+  } catch (e) {
+    return err(toAppError(e))
+  }
+}
+
 export async function receiveBatch(
   client: SupabaseClient,
   input: InventoryBatchInsert

@@ -6,7 +6,7 @@ export const MedicationSchema = z.object({
   name: z.string(),
   generic_name: z.string().nullable(),
   brand_name: z.string().nullable(),
-  dosage_form: z.string(),
+  dosage_form: z.string().nullable().transform(v => v ?? 'Other'),
   strength: z.string().nullable(),
   unit_of_measure: z.string(),
   barcode: z.string().nullable(),

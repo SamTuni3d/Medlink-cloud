@@ -4,50 +4,86 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    /* ── Backgrounds ─────────────────────────────── */
+    --background: 30 20% 98%;          /* warm near-white  #FAF8F6 */
+    --foreground: 346 55% 10%;         /* near-black warm  #200910 */
+
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 346 55% 10%;
+
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-    /* MedLink primary: #0F7938 */
-    --primary: 143 80% 27%;
+    --popover-foreground: 346 55% 10%;
+
+    /* ── Brand primaries ─────────────────────────── */
+    /* Primary: #741A2F  burgundy/wine */
+    --primary: 346 63% 28%;
     --primary-foreground: 0 0% 100%;
-    /* MedLink secondary: #1A4D8F */
-    --secondary: 213 69% 33%;
-    --secondary-foreground: 0 0% 100%;
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 143 80% 27%;
-    --radius: 0.5rem;
+
+    /* Secondary: soft amber tint surface */
+    --secondary: 33 80% 90%;
+    --secondary-foreground: 346 55% 20%;
+
+    /* ── Neutrals ────────────────────────────────── */
+    --muted: 25 20% 94%;
+    --muted-foreground: 346 15% 48%;
+
+    /* Accent: very light gold tint — used for hover backgrounds & badges */
+    --accent: 33 90% 93%;
+    --accent-foreground: 346 63% 28%;
+
+    /* ── Destructive ─────────────────────────────── */
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
+
+    /* ── Borders, inputs, ring ───────────────────── */
+    --border: 20 25% 89%;
+    --input: 20 25% 89%;
+    --ring: 346 63% 28%;
+
+    --radius: 0.625rem;
+
+    /* ── Custom brand tokens ─────────────────────── */
+    --gold: 33 100% 75%;               /* #FFC680 */
+    --gold-light: 33 100% 93%;         /* very light amber tint */
+    --burgundy: 346 63% 28%;           /* #741A2F */
+    --burgundy-dark: 346 65% 18%;      /* #4A0F1E deeper */
+    --burgundy-light: 346 50% 40%;     /* lighter for hover */
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 143 70% 40%;
+    --background: 346 35% 7%;          /* very dark warm #140608 */
+    --foreground: 30 20% 96%;          /* warm off-white */
+
+    --card: 346 30% 10%;
+    --card-foreground: 30 20% 96%;
+
+    --popover: 346 30% 10%;
+    --popover-foreground: 30 20% 96%;
+
+    --primary: 346 60% 50%;            /* lighter burgundy for dark mode */
     --primary-foreground: 0 0% 100%;
-    --secondary: 213 60% 50%;
-    --secondary-foreground: 0 0% 100%;
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 143 70% 40%;
+
+    --secondary: 33 40% 20%;
+    --secondary-foreground: 33 80% 80%;
+
+    --muted: 346 25% 15%;
+    --muted-foreground: 346 15% 60%;
+
+    --accent: 33 50% 18%;
+    --accent-foreground: 33 90% 75%;
+
+    --destructive: 0 62% 40%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 346 25% 18%;
+    --input: 346 25% 18%;
+    --ring: 346 60% 50%;
+
+    --gold: 33 95% 70%;
+    --gold-light: 33 60% 22%;
+    --burgundy: 346 60% 50%;
+    --burgundy-dark: 346 65% 35%;
+    --burgundy-light: 346 50% 60%;
   }
 }
 
@@ -60,7 +96,50 @@
   }
 }
 
-/* ── Global transition on every interactive element ──────────────────────── */
+/* ── App shell ────────────────────────────────────────────────────────────────
+   These mirror the Tailwind classes on layout components so the shell is
+   correct before the utility layer fully compiles.
+────────────────────────────────────────────────────────────────────────────── */
+.app-shell {
+  display: flex;
+  min-height: 100vh;
+  background-color: #f7f2ef;          /* warm cream page background */
+}
+.app-sidebar {
+  display: none;
+  width: 240px;
+  flex-shrink: 0;
+  flex-direction: column;
+  background-color: #12060b;          /* very dark warm black */
+}
+@media (min-width: 768px) {
+  .app-sidebar { display: flex; }
+}
+.app-main {
+  display: flex;
+  flex: 1 1 0%;
+  flex-direction: column;
+  overflow: hidden;
+  min-width: 0;
+}
+
+/* ── Sidebar gold accent border on active items ─────────────────────────── */
+.nav-active-item {
+  position: relative;
+}
+.nav-active-item::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 60%;
+  border-radius: 0 2px 2px 0;
+  background: #FFC680;
+}
+
+/* ── Global transition on every interactive element ────────────────────── */
 button,
 a,
 [role="button"],
@@ -78,36 +157,66 @@ button:active:not(:disabled),
   transform: scale(0.96) !important;
 }
 
-/* ── Scrollbar styling ────────────────────────────────────────────────────── */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-::-webkit-scrollbar-thumb {
-  background: hsl(var(--border));
+/* ── Scrollbar styling ──────────────────────────────────────────────────── */
+::-webkit-scrollbar        { width: 6px; height: 6px; }
+::-webkit-scrollbar-track  { background: transparent; }
+::-webkit-scrollbar-thumb  {
+  background: hsl(346 25% 75%);
   border-radius: 99px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: hsl(var(--muted-foreground) / 0.5);
+  background: hsl(var(--burgundy) / 0.5);
 }
 
-/* ── Selection color ─────────────────────────────────────────────────────── */
+/* ── Selection color ────────────────────────────────────────────────────── */
 ::selection {
-  background: hsl(var(--primary) / 0.15);
-  color: hsl(var(--primary));
+  background: hsl(var(--gold) / 0.25);
+  color: hsl(var(--burgundy));
 }
 
-/* ── Smooth focus rings ──────────────────────────────────────────────────── */
+/* ── Smooth focus rings ─────────────────────────────────────────────────── */
 :focus-visible {
-  outline: 2px solid hsl(var(--primary) / 0.6);
+  outline: 2px solid hsl(var(--primary) / 0.55);
   outline-offset: 2px;
   border-radius: var(--radius);
 }
 
-/* ── Keyframe: shimmer loading ───────────────────────────────────────────── */
+/* ── Keyframes: entrance animations ────────────────────────────────────── */
+@keyframes slideInLeft {
+  from { transform: translateX(-100%); opacity: 0; }
+  to   { transform: translateX(0);     opacity: 1; }
+}
+@keyframes slideInRight {
+  from { transform: translateX(40px); opacity: 0; }
+  to   { transform: translateX(0);    opacity: 1; }
+}
+@keyframes slideUp {
+  from { transform: translateY(20px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+@keyframes fadeInOverlay {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes scaleIn {
+  from { transform: scale(0.94); opacity: 0; }
+  to   { transform: scale(1);    opacity: 1; }
+}
+@keyframes bounceIn {
+  0%   { transform: scale(0.6); opacity: 0; }
+  60%  { transform: scale(1.08); opacity: 1; }
+  100% { transform: scale(1); }
+}
+@keyframes pageSlideIn {
+  from { transform: translateY(10px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+@keyframes staggerFadeUp {
+  from { transform: translateY(14px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+
+/* ── Keyframe: shimmer loading ──────────────────────────────────────────── */
 @keyframes shimmer {
   0%   { background-position: -200% 0; }
   100% { background-position:  200% 0; }
@@ -123,11 +232,73 @@ button:active:not(:disabled),
   animation: shimmer 1.6s infinite;
 }
 
-/* ── Keyframe: float badge pulse ─────────────────────────────────────────── */
+/* ── Keyframe: float badge pulse ────────────────────────────────────────── */
 @keyframes badge-pulse {
   0%, 100% { transform: scale(1); }
   50%       { transform: scale(1.08); }
 }
 .badge-pulse {
   animation: badge-pulse 2s ease-in-out infinite;
+}
+
+/* ── Keyframe: ripple ───────────────────────────────────────────────────── */
+@keyframes ripple {
+  to { transform: scale(4); opacity: 0; }
+}
+
+/* ── Sidebar gradient header accent ────────────────────────────────────── */
+.sidebar-brand-bar {
+  background: linear-gradient(
+    135deg,
+    #12060b 0%,
+    #741a2f 60%,
+    #9b2c42 100%
+  );
+  border-bottom: 1px solid rgba(255,198,128,0.15);
+}
+
+/* ── Page slide-in ──────────────────────────────────────────────────────── */
+.page-enter {
+  animation: pageSlideIn 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* ── Stagger children ───────────────────────────────────────────────────── */
+.stagger-item {
+  animation: staggerFadeUp 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.stagger-item:nth-child(1)  { animation-delay: 0.04s; }
+.stagger-item:nth-child(2)  { animation-delay: 0.08s; }
+.stagger-item:nth-child(3)  { animation-delay: 0.12s; }
+.stagger-item:nth-child(4)  { animation-delay: 0.16s; }
+.stagger-item:nth-child(5)  { animation-delay: 0.20s; }
+.stagger-item:nth-child(6)  { animation-delay: 0.24s; }
+.stagger-item:nth-child(7)  { animation-delay: 0.28s; }
+.stagger-item:nth-child(8)  { animation-delay: 0.32s; }
+.stagger-item:nth-child(9)  { animation-delay: 0.36s; }
+.stagger-item:nth-child(10) { animation-delay: 0.40s; }
+
+/* ── Ripple button utility ──────────────────────────────────────────────── */
+.ripple-btn {
+  position: relative;
+  overflow: hidden;
+}
+.ripple-btn .ripple-circle {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.35);
+  pointer-events: none;
+  transform: scale(0);
+  animation: ripple 0.5s linear;
+}
+
+/* ── Touch-friendly minimum tap target ──────────────────────────────────── */
+@media (pointer: coarse) {
+  button, a, [role="button"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  .tap-sm {
+    min-height: 36px;
+    min-width: 36px;
+  }
 }
