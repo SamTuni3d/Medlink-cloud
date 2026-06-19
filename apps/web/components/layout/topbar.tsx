@@ -49,12 +49,16 @@ function OnlineIndicator() {
   }, [])
 
   return (
-    <div className={`hidden items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium sm:flex ${
-      online
-        ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400'
-        : 'bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400'
-    }`}>
-      <span className={`h-1.5 w-1.5 rounded-full ${online ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`} />
+    <div
+      className="hidden items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium sm:flex"
+      style={online
+        ? { background: 'hsl(175 35% 91%)', color: '#004741' }
+        : { background: 'hsl(0 85% 96%)', color: '#b91c1c' }}
+    >
+      <span
+        className={`h-1.5 w-1.5 rounded-full ${online ? 'animate-pulse' : ''}`}
+        style={{ background: online ? '#004741' : '#b91c1c' }}
+      />
       {online ? 'Online' : 'Offline'}
       {online ? <Wifi className="h-3 w-3" /> : <WifiOff className="h-3 w-3" />}
     </div>
@@ -74,7 +78,7 @@ function BranchSelector() {
         if (branch) setActiveBranch(branch)
       }}
     >
-      <SelectTrigger className="h-8 w-[160px] border-[hsl(20_25%_89%)] bg-white text-xs font-medium dark:border-white/10 dark:bg-white/5">
+      <SelectTrigger className="h-8 w-[160px] border-[hsl(175_18%_87%)] bg-white text-xs font-medium dark:border-white/10 dark:bg-white/5">
         <SelectValue placeholder="Select branch" />
       </SelectTrigger>
       <SelectContent>
@@ -115,7 +119,7 @@ export function Topbar() {
   return (
     <header
       className="flex h-14 shrink-0 items-center gap-2 border-b bg-white px-3 sm:px-4 md:px-6"
-      style={{ borderColor: 'hsl(20 25% 89%)', boxShadow: '0 1px 0 0 hsl(20 25% 92%)' }}
+      style={{ borderColor: 'hsl(175 18% 87%)', boxShadow: '0 1px 0 0 hsl(20 25% 92%)' }}
     >
       {/* Mobile hamburger */}
       <MobileNav />
@@ -124,11 +128,11 @@ export function Topbar() {
       <div className="flex min-w-0 flex-1 items-center gap-2">
         <span
           className="hidden h-5 w-[3px] shrink-0 rounded-full md:block"
-          style={{ background: '#741A2F' }}
+          style={{ background: '#004741' }}
         />
         <h1
           className="truncate text-sm font-bold md:text-base"
-          style={{ color: '#741A2F' }}
+          style={{ color: '#004741' }}
         >
           {pageTitle}
         </h1>
@@ -142,18 +146,18 @@ export function Topbar() {
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button
-              className="flex items-center gap-1.5 rounded-xl px-1.5 py-1 outline-none transition-colors hover:bg-[hsl(33_90%_93%)] sm:gap-2 sm:px-2 sm:py-1.5"
+              className="flex items-center gap-1.5 rounded-xl px-1.5 py-1 outline-none transition-colors hover:bg-[hsl(175_35%_91%)] sm:gap-2 sm:px-2 sm:py-1.5"
             >
               <Avatar className="h-7 w-7 shrink-0">
                 <AvatarFallback
                   className="text-xs font-bold"
-                  style={{ background: '#741A2F', color: '#FFC680' }}
+                  style={{ background: '#004741', color: '#C4A44C' }}
                 >
                   {initials}
                 </AvatarFallback>
               </Avatar>
               <div className="hidden flex-col items-start leading-none sm:flex">
-                <span className="text-xs font-semibold" style={{ color: '#200910' }}>{fullName}</span>
+                <span className="text-xs font-semibold" style={{ color: '#051A18' }}>{fullName}</span>
                 {primaryRole && (
                   <span className="mt-0.5 text-[10px] capitalize text-muted-foreground">{roleLabel}</span>
                 )}
@@ -170,7 +174,7 @@ export function Topbar() {
                 {primaryRole && (
                   <span
                     className="mt-1 inline-block rounded-full px-2 py-0.5 text-xs font-medium capitalize"
-                    style={{ background: 'hsl(33 90% 93%)', color: '#741A2F' }}
+                    style={{ background: 'hsl(175 35% 91%)', color: '#004741' }}
                   >
                     {roleLabel}
                   </span>

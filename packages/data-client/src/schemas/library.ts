@@ -38,6 +38,7 @@ export const ImportItemSchema = z.object({
   sellingPrice:  z.number().min(0.01, 'Selling price is required'),
   purchasePrice: z.number().min(0).optional(),
   reorderPoint:  z.number().int().min(0).default(10),
+  openingStock:  z.number().int().min(0).default(0),
 })
 
 export type ImportItem = z.infer<typeof ImportItemSchema>

@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import {
   Search, BookOpen, CheckCircle2, Plus, ChevronRight,
-  ChevronLeft, Loader2, AlertCircle, Sparkles,
+  ChevronLeft, Loader2, AlertCircle, Sparkles, Trash2,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -39,6 +39,7 @@ interface SelectedItem {
   entry: LibraryEntryWithStatus
   sellingPrice: string
   reorderPoint: string
+  openingStock: string
 }
 
 type Step = 'browse' | 'prices'
@@ -110,7 +111,7 @@ export default function ImportFromLibraryModal({
     setSelected(prev => {
       const exists = prev.find(s => s.entry.id === entry.id)
       if (exists) return prev.filter(s => s.entry.id !== entry.id)
-      return [...prev, { entry, sellingPrice: '', reorderPoint: '10' }]
+      return [...prev, { entry, sellingPrice: '', reorderPoint: '10', openingStock: '0' }]
     })
   }
 
@@ -118,10 +119,14 @@ export default function ImportFromLibraryModal({
     return selected.some(s => s.entry.id === id)
   }
 
-  function updatePrice(id: string, field: 'sellingPrice' | 'reorderPoint', value: string) {
+  function updatePrice(id: string, field: 'sellingPrice' | 'reorderPoint' | 'openingStock', value: string) {
     setSelected(prev => prev.map(s =>
       s.entry.id === id ? { ...s, [field]: value } : s
     ))
+  }
+
+  function removeEntry(id: string) {
+    setSelected(prev => prev.filter(s => s.entry.id !== id))
   }
 
   function canProceed() {
@@ -142,6 +147,7 @@ export default function ImportFromLibraryModal({
       libraryId:    s.entry.id,
       sellingPrice: parseFloat(s.sellingPrice),
       reorderPoint: parseInt(s.reorderPoint, 10) || 10,
+      openingStock: Math.max(0, parseInt(s.openingStock, 10) || 0),
     }))
 
     const result = await importFromLibraryAction({
@@ -198,6 +204,7 @@ export default function ImportFromLibraryModal({
             selected={selected}
             currencyCode={currencyCode}
             onUpdatePrice={updatePrice}
+            onRemove={removeEntry}
             error={error}
             saving={saving}
           />
@@ -242,7 +249,7 @@ function StepPip({ active, done, label }: { active: boolean; done: boolean; labe
   return (
     <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
       active ? 'bg-primary text-primary-foreground'
-      : done  ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+      : done  ? 'bg-[hsl(175_35%_91%)] text-[#004741]'
       : 'text-muted-foreground'
     }`}>
       {label}
@@ -379,7 +386,7 @@ function LibraryRow({
           <Badge variant="secondary" className="text-xs">{entry.category}</Badge>
         )}
         {entry.already_imported && (
-          <Badge className="text-xs bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border-0">
+          <Badge className="text-xs bg-[hsl(175_35%_91%)] text-[#004741] border-0">
             Imported
           </Badge>
         )}
@@ -393,12 +400,13 @@ function LibraryRow({
 interface PricesStepProps {
   selected: SelectedItem[]
   currencyCode: string
-  onUpdatePrice: (id: string, field: 'sellingPrice' | 'reorderPoint', value: string) => void
+  onUpdatePrice: (id: string, field: 'sellingPrice' | 'reorderPoint' | 'openingStock', value: string) => void
+  onRemove: (id: string) => void
   error: string | null
   saving: boolean
 }
 
-function PricesStep({ selected, currencyCode, onUpdatePrice, error, saving }: PricesStepProps) {
+function PricesStep({ selected, currencyCode, onUpdatePrice, onRemove, error, saving }: PricesStepProps) {
   return (
     <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3">
       {error && (
@@ -408,52 +416,92 @@ function PricesStep({ selected, currencyCode, onUpdatePrice, error, saving }: Pr
         </div>
       )}
       <p className="text-sm text-muted-foreground">
-        Set a selling price for each medication. These can be edited later from the Inventory page.
+        Set a selling price and opening stock for each medication. Use the trash icon to remove one.
       </p>
-      {selected.map(({ entry, sellingPrice, reorderPoint }) => (
-        <div key={entry.id} className="border border-border rounded-lg p-4 space-y-3">
-          <div>
-            <div className="font-medium text-sm">
-              {entry.name}
-              {entry.strength && <span className="text-muted-foreground ml-1.5 font-normal">{entry.strength}</span>}
-            </div>
-            {entry.dosage_form && (
-              <div className="text-xs text-muted-foreground">{entry.dosage_form}</div>
-            )}
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1">
-              <Label className="text-xs">Selling price ({currencyCode}) *</Label>
-              <Input
-                type="number"
-                min="0.01"
-                step="0.01"
-                placeholder="0.00"
-                value={sellingPrice}
-                onChange={e => onUpdatePrice(entry.id, 'sellingPrice', e.target.value)}
+      {selected.map(({ entry, sellingPrice, reorderPoint, openingStock }) => {
+        const priceInvalid = sellingPrice !== '' && parseFloat(sellingPrice) <= 0
+        return (
+          <div key={entry.id} className="border border-border rounded-lg p-4 space-y-3">
+            {/* Header row: name + unit badge + remove button */}
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <div className="font-medium text-sm truncate">
+                  {entry.name}
+                  {entry.strength && (
+                    <span className="text-muted-foreground ml-1.5 font-normal">{entry.strength}</span>
+                  )}
+                </div>
+                <div className="text-xs text-muted-foreground flex items-center gap-1.5 mt-0.5">
+                  {entry.dosage_form && (
+                    <Badge variant="secondary" className="text-xs px-1.5 py-0">{entry.dosage_form}</Badge>
+                  )}
+                  {entry.generic_name && entry.generic_name !== entry.name && (
+                    <span>{entry.generic_name}</span>
+                  )}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => onRemove(entry.id)}
                 disabled={saving}
-                className={!sellingPrice || parseFloat(sellingPrice) <= 0
-                  ? 'border-destructive/60 focus-visible:ring-destructive/40' : ''}
-              />
-              {sellingPrice !== '' && parseFloat(sellingPrice) <= 0 && (
-                <p className="text-xs text-destructive">Must be greater than 0</p>
-              )}
+                title="Remove"
+                className="shrink-0 p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-40"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
             </div>
-            <div className="space-y-1">
-              <Label className="text-xs">Reorder point (units)</Label>
-              <Input
-                type="number"
-                min="0"
-                step="1"
-                placeholder="10"
-                value={reorderPoint}
-                onChange={e => onUpdatePrice(entry.id, 'reorderPoint', e.target.value)}
-                disabled={saving}
-              />
+
+            {/* Fields — selling price spans full width, qty fields sit side-by-side below */}
+            <div className="space-y-2">
+              <div className="space-y-1">
+                <Label className="text-xs">Selling price ({currencyCode}) *</Label>
+                <Input
+                  type="number"
+                  min="0.01"
+                  step="0.01"
+                  placeholder="0.00"
+                  value={sellingPrice}
+                  onChange={e => onUpdatePrice(entry.id, 'sellingPrice', e.target.value)}
+                  disabled={saving}
+                  className={priceInvalid
+                    ? 'border-destructive/60 focus-visible:ring-destructive/40' : ''}
+                />
+                {/* fixed-height slot so the row below never shifts */}
+                <p className={`text-xs text-destructive transition-opacity ${priceInvalid ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+                  Must be greater than 0
+                </p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs">Opening stock (qty)</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    step="1"
+                    placeholder="0"
+                    value={openingStock}
+                    onChange={e => onUpdatePrice(entry.id, 'openingStock', e.target.value)}
+                    disabled={saving}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Reorder point (qty)</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    step="1"
+                    placeholder="10"
+                    value={reorderPoint}
+                    onChange={e => onUpdatePrice(entry.id, 'reorderPoint', e.target.value)}
+                    disabled={saving}
+                  />
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-      ))}
+        )
+      })}
     </div>
   )
 }

@@ -126,7 +126,7 @@ export function SidebarNav({ onNavigate }: SidebarNavProps) {
             className={cn(
               'nav-active-item group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all',
               active
-                ? 'bg-[#741A2F] text-white shadow-md shadow-[#741A2F]/30'
+                ? 'bg-[#004741] text-white shadow-md shadow-[#004741]/40'
                 : 'text-white/50 hover:bg-white/8 hover:text-white/90'
             )}
             style={!active ? {} : undefined}
@@ -134,11 +134,11 @@ export function SidebarNav({ onNavigate }: SidebarNavProps) {
             <Icon className={cn(
               'h-4 w-4 shrink-0 transition-colors',
               active
-                ? 'text-[#FFC680]'
+                ? 'text-[#C4A44C]'
                 : 'text-white/35 group-hover:text-white/70',
             )} />
             <span className="flex-1 tracking-wide">{label}</span>
-            {active && <ChevronRight className="h-3 w-3 text-[#FFC680]/60" />}
+            {active && <ChevronRight className="h-3 w-3 text-[#C4A44C]/60" />}
           </Link>
         )
       })}
@@ -169,13 +169,13 @@ function SidebarUserFooter() {
     <div className="border-t border-white/8 p-3">
       <div className="flex items-center gap-3 rounded-lg px-2 py-2">
         <Avatar className="h-8 w-8 shrink-0">
-          <AvatarFallback className="text-xs font-bold" style={{ background: '#741A2F', color: '#FFC680' }}>
+          <AvatarFallback className="text-xs font-bold" style={{ background: '#004741', color: '#C4A44C' }}>
             {initials}
           </AvatarFallback>
         </Avatar>
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-semibold text-white">{fullName}</p>
-          <p className="truncate text-xs capitalize" style={{ color: '#FFC680', opacity: 0.75 }}>{roleLabel}</p>
+          <p className="truncate text-xs capitalize" style={{ color: '#C4A44C', opacity: 0.75 }}>{roleLabel}</p>
         </div>
         <button
           onClick={() => void signOut()}
@@ -193,7 +193,7 @@ export function Sidebar() {
   return (
     <aside
       className="app-sidebar hidden w-60 flex-col md:flex shrink-0"
-      style={{ background: '#12060b' }}
+      style={{ background: '#001C1A' }}
     >
       {/* Brand header with gradient */}
       <div className="sidebar-brand-bar flex h-16 items-center px-5">
@@ -205,7 +205,7 @@ export function Sidebar() {
       <div className="flex-1 overflow-y-auto py-4">
         <p
           className="px-5 pb-2 text-[10px] font-semibold uppercase tracking-widest"
-          style={{ color: '#FFC680', opacity: 0.45 }}
+          style={{ color: '#C4A44C', opacity: 0.45 }}
         >
           Menu
         </p>

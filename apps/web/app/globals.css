@@ -5,85 +5,85 @@
 @layer base {
   :root {
     /* ── Backgrounds ─────────────────────────────── */
-    --background: 30 20% 98%;          /* warm near-white  #FAF8F6 */
-    --foreground: 346 55% 10%;         /* near-black warm  #200910 */
+    --background: 42 22% 92%;          /* #f0ede4 warm cream */
+    --foreground: 175 80% 8%;          /* deep teal-black #051A18 */
 
     --card: 0 0% 100%;
-    --card-foreground: 346 55% 10%;
+    --card-foreground: 175 80% 8%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 346 55% 10%;
+    --popover-foreground: 175 80% 8%;
 
     /* ── Brand primaries ─────────────────────────── */
-    /* Primary: #741A2F  burgundy/wine */
-    --primary: 346 63% 28%;
-    --primary-foreground: 0 0% 100%;
+    /* Primary: #004741  deep teal */
+    --primary: 175 100% 14%;
+    --primary-foreground: 42 22% 96%;
 
-    /* Secondary: soft amber tint surface */
-    --secondary: 33 80% 90%;
-    --secondary-foreground: 346 55% 20%;
+    /* Secondary: soft teal tint surface */
+    --secondary: 175 35% 91%;
+    --secondary-foreground: 175 100% 14%;
 
     /* ── Neutrals ────────────────────────────────── */
-    --muted: 25 20% 94%;
-    --muted-foreground: 346 15% 48%;
+    --muted: 175 18% 94%;
+    --muted-foreground: 175 20% 42%;
 
-    /* Accent: very light gold tint — used for hover backgrounds & badges */
-    --accent: 33 90% 93%;
-    --accent-foreground: 346 63% 28%;
+    /* Accent: very light teal — used for hover backgrounds & badges */
+    --accent: 175 35% 91%;
+    --accent-foreground: 175 100% 14%;
 
     /* ── Destructive ─────────────────────────────── */
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 98%;
 
     /* ── Borders, inputs, ring ───────────────────── */
-    --border: 20 25% 89%;
-    --input: 20 25% 89%;
-    --ring: 346 63% 28%;
+    --border: 175 18% 87%;
+    --input: 175 18% 87%;
+    --ring: 175 100% 14%;
 
     --radius: 0.625rem;
 
     /* ── Custom brand tokens ─────────────────────── */
-    --gold: 33 100% 75%;               /* #FFC680 */
-    --gold-light: 33 100% 93%;         /* very light amber tint */
-    --burgundy: 346 63% 28%;           /* #741A2F */
-    --burgundy-dark: 346 65% 18%;      /* #4A0F1E deeper */
-    --burgundy-light: 346 50% 40%;     /* lighter for hover */
+    --teal: 175 100% 14%;              /* #004741 */
+    --teal-dark: 175 100% 7%;         /* #001C1A near-black teal */
+    --teal-mid: 175 100% 21%;         /* #006B60 mid teal */
+    --gold: 44 52% 48%;               /* #C4A44C antique gold */
+    --gold-light: 44 60% 93%;         /* very light gold tint */
   }
 
   .dark {
-    --background: 346 35% 7%;          /* very dark warm #140608 */
-    --foreground: 30 20% 96%;          /* warm off-white */
+    --background: 175 40% 7%;
+    --foreground: 42 22% 95%;
 
-    --card: 346 30% 10%;
-    --card-foreground: 30 20% 96%;
+    --card: 175 35% 10%;
+    --card-foreground: 42 22% 95%;
 
-    --popover: 346 30% 10%;
-    --popover-foreground: 30 20% 96%;
+    --popover: 175 35% 10%;
+    --popover-foreground: 42 22% 95%;
 
-    --primary: 346 60% 50%;            /* lighter burgundy for dark mode */
+    --primary: 175 70% 40%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 33 40% 20%;
-    --secondary-foreground: 33 80% 80%;
+    --secondary: 175 25% 18%;
+    --secondary-foreground: 175 70% 80%;
 
-    --muted: 346 25% 15%;
-    --muted-foreground: 346 15% 60%;
+    --muted: 175 25% 14%;
+    --muted-foreground: 175 20% 60%;
 
-    --accent: 33 50% 18%;
-    --accent-foreground: 33 90% 75%;
+    --accent: 175 30% 18%;
+    --accent-foreground: 175 70% 75%;
 
     --destructive: 0 62% 40%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 346 25% 18%;
-    --input: 346 25% 18%;
-    --ring: 346 60% 50%;
+    --border: 175 25% 18%;
+    --input: 175 25% 18%;
+    --ring: 175 70% 40%;
 
-    --gold: 33 95% 70%;
-    --gold-light: 33 60% 22%;
-    --burgundy: 346 60% 50%;
-    --burgundy-dark: 346 65% 35%;
-    --burgundy-light: 346 50% 60%;
+    --teal: 175 70% 40%;
+    --teal-dark: 175 100% 7%;
+    --teal-mid: 175 70% 30%;
+    --gold: 44 52% 60%;
+    --gold-light: 44 40% 22%;
   }
 }
 
@@ -103,14 +103,14 @@
 .app-shell {
   display: flex;
   min-height: 100vh;
-  background-color: #f7f2ef;          /* warm cream page background */
+  background-color: #f0ede4;          /* warm cream page background */
 }
 .app-sidebar {
   display: none;
   width: 240px;
   flex-shrink: 0;
   flex-direction: column;
-  background-color: #12060b;          /* very dark warm black */
+  background-color: #001C1A;          /* deep near-black teal */
 }
 @media (min-width: 768px) {
   .app-sidebar { display: flex; }
@@ -136,7 +136,7 @@
   width: 3px;
   height: 60%;
   border-radius: 0 2px 2px 0;
-  background: #FFC680;
+  background: #C4A44C;
 }
 
 /* ── Global transition on every interactive element ────────────────────── */
@@ -161,17 +161,17 @@ button:active:not(:disabled),
 ::-webkit-scrollbar        { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track  { background: transparent; }
 ::-webkit-scrollbar-thumb  {
-  background: hsl(346 25% 75%);
+  background: hsl(175 35% 72%);
   border-radius: 99px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: hsl(var(--burgundy) / 0.5);
+  background: hsl(var(--teal) / 0.5);
 }
 
 /* ── Selection color ────────────────────────────────────────────────────── */
 ::selection {
   background: hsl(var(--gold) / 0.25);
-  color: hsl(var(--burgundy));
+  color: hsl(var(--teal));
 }
 
 /* ── Smooth focus rings ─────────────────────────────────────────────────── */
@@ -250,11 +250,11 @@ button:active:not(:disabled),
 .sidebar-brand-bar {
   background: linear-gradient(
     135deg,
-    #12060b 0%,
-    #741a2f 60%,
-    #9b2c42 100%
+    #001C1A 0%,
+    #004741 60%,
+    #006B60 100%
   );
-  border-bottom: 1px solid rgba(255,198,128,0.15);
+  border-bottom: 1px solid rgba(196,164,76,0.20);
 }
 
 /* ── Page slide-in ──────────────────────────────────────────────────────── */

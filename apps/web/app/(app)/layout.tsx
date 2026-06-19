@@ -4,7 +4,7 @@ import { PageTransition } from '@/components/ui/page-transition'
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="app-shell flex min-h-screen" style={{ background: '#F7F2EF' }}>
+    <div className="app-shell flex min-h-screen" style={{ background: '#f0ede4' }}>
       <Sidebar />
       <div className="app-main flex flex-1 flex-col overflow-hidden">
         <Topbar />

@@ -61,7 +61,7 @@ export function MobileNav() {
       <button
         onClick={() => setOpen(true)}
         className="flex h-10 w-10 items-center justify-center rounded-xl transition-colors md:hidden"
-        style={{ background: 'hsl(33 90% 93%)', color: '#741A2F' }}
+        style={{ background: 'hsl(175 35% 91%)', color: '#004741' }}
         aria-label="Open navigation"
       >
         <Menu className="h-5 w-5" />
@@ -76,7 +76,7 @@ export function MobileNav() {
             onTouchEnd={onTouchEnd}
             className="fixed inset-0 z-40 md:hidden"
             style={{
-              background: 'rgba(18,6,11,0.65)',
+              background: 'rgba(0,28,26,0.65)',
               backdropFilter: 'blur(4px)',
               WebkitBackdropFilter: 'blur(4px)',
               animation: closing
@@ -89,7 +89,7 @@ export function MobileNav() {
           <div
             className="fixed left-0 top-0 z-50 flex h-full w-[72vw] max-w-[280px] flex-col shadow-2xl md:hidden"
             style={{
-              background: '#12060b',
+              background: '#001C1A',
               animation: closing
                 ? 'slideInLeft 0.24s cubic-bezier(0.4, 0, 1, 1) reverse both'
                 : 'slideInLeft 0.28s cubic-bezier(0.22, 1, 0.36, 1) both',
@@ -101,7 +101,7 @@ export function MobileNav() {
             <div
               className="flex h-16 items-center justify-between px-5 shrink-0"
               style={{
-                background: 'linear-gradient(135deg, #12060b 0%, #741a2f 60%, #9b2c42 100%)',
+                background: 'linear-gradient(135deg, #001C1A 0%, #004741 60%, #006B60 100%)',
                 borderBottom: '1px solid rgba(255,198,128,0.15)',
               }}
             >
@@ -110,7 +110,7 @@ export function MobileNav() {
               <button
                 onClick={handleClose}
                 className="flex h-8 w-8 items-center justify-center rounded-lg transition-colors"
-                style={{ color: 'rgba(255,198,128,0.7)' }}
+                style={{ color: 'rgba(196,164,76,0.7)' }}
                 onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.1)')}
                 onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                 aria-label="Close navigation"
@@ -123,7 +123,7 @@ export function MobileNav() {
             <div className="flex-1 overflow-y-auto py-4">
               <p
                 className="px-5 pb-2 text-[10px] font-semibold uppercase tracking-widest"
-                style={{ color: '#FFC680', opacity: 0.45 }}
+                style={{ color: '#C4A44C', opacity: 0.45 }}
               >
                 Menu
               </p>
@@ -136,14 +136,14 @@ export function MobileNav() {
                 <Avatar className="h-8 w-8 shrink-0">
                   <AvatarFallback
                     className="text-xs font-bold"
-                    style={{ background: '#741A2F', color: '#FFC680' }}
+                    style={{ background: '#004741', color: '#C4A44C' }}
                   >
                     {initials}
                   </AvatarFallback>
                 </Avatar>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-semibold text-white">{fullName}</p>
-                  <p className="truncate text-xs capitalize" style={{ color: '#FFC680', opacity: 0.7 }}>
+                  <p className="truncate text-xs capitalize" style={{ color: '#C4A44C', opacity: 0.7 }}>
                     {roleLabel}
                   </p>
                 </div>

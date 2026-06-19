@@ -75,7 +75,7 @@ export default function LibraryReviewClient({ userId, initialSuggestions }: Prop
 
       {suggestions.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-24 text-muted-foreground">
-          <CheckCircle2 className="h-12 w-12 mb-4 text-emerald-500 opacity-60" />
+          <CheckCircle2 className="h-12 w-12 mb-4 text-primary opacity-60" />
           <p className="font-medium text-lg">All caught up!</p>
           <p className="text-sm">No pending suggestions to review.</p>
         </div>
@@ -103,7 +103,7 @@ export default function LibraryReviewClient({ userId, initialSuggestions }: Prop
                 <Button
                   size="sm"
                   variant="outline"
-                  className="text-emerald-600 border-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-900/20"
+                  className="text-[#004741] border-[hsl(175_35%_75%)] hover:bg-[hsl(175_35%_96%)]"
                   onClick={() => approve(entry)}
                   disabled={busyId === entry.id}
                 >

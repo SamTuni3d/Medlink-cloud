@@ -27,7 +27,7 @@ export default function RegisterPage() {
       <img src="/logo.svg" alt="MedLink" className="mx-auto mb-7 h-12 w-auto" />
     <div className="rounded-xl border bg-card p-8 shadow-sm">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Create your pharmacy</h1>
+        <h1 className="text-2xl font-bold text-foreground">Create your pharmacy</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Set up MedLink Cloud for your organization
         </p>

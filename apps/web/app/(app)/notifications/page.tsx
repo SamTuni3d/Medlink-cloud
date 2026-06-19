@@ -28,16 +28,16 @@ function SummaryCard({
   loading: boolean
 }) {
   return (
-    <div className={`rounded-xl border p-5 bg-white dark:bg-slate-900 flex items-center gap-4`}>
+    <div className={`rounded-xl border p-5 bg-white flex items-center gap-4`}>
       <div className={`flex h-12 w-12 items-center justify-center rounded-xl ${color}`}>
         <Icon className="h-6 w-6" />
       </div>
       <div>
-        <p className="text-sm text-slate-500 dark:text-slate-400">{label}</p>
+        <p className="text-sm text-muted-foreground">{label}</p>
         {loading ? (
           <Skeleton className="mt-1 h-8 w-12" />
         ) : (
-          <p className="text-3xl font-bold text-slate-900 dark:text-slate-100">{count}</p>
+          <p className="text-3xl font-bold text-foreground">{count}</p>
         )}
       </div>
     </div>
@@ -84,8 +84,8 @@ export default function NotificationsPage() {
       {/* Header */}
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Notifications & Alerts</h1>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">Critical alerts requiring your attention</p>
+          <h1 className="text-2xl font-bold text-foreground">Notifications & Alerts</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">Critical alerts requiring your attention</p>
         </div>
         <div className="flex items-center gap-2">
           {!loading && totalActive > 0 && (
@@ -110,27 +110,27 @@ export default function NotificationsPage() {
           icon={Package}
           label="Low Stock"
           count={lowStock.length}
-          color="bg-amber-50 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400"
+          color="bg-amber-50 text-amber-600 "
           loading={loading}
         />
         <SummaryCard
           icon={Clock}
           label="Expiring Soon"
           count={expiringSoon.length}
-          color="bg-orange-50 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400"
+          color="bg-orange-50 text-orange-600 "
           loading={loading}
         />
         <SummaryCard
           icon={AlertTriangle}
           label="Expired"
           count={expired.length}
-          color="bg-red-50 text-red-600 dark:bg-red-900/30 dark:text-red-400"
+          color="bg-red-50 text-red-600 "
           loading={loading}
         />
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-2 border-b border-slate-200 dark:border-slate-700">
+      <div className="flex gap-2 border-b border-border">
         {tabs.map(tab => (
           <button
             key={tab.key}
@@ -138,7 +138,7 @@ export default function NotificationsPage() {
             className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
               activeTab === tab.key
                 ? 'border-primary text-primary'
-                : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
+                : 'border-transparent text-muted-foreground hover:text-foreground'
             }`}
           >
             {tab.label}
@@ -146,7 +146,7 @@ export default function NotificationsPage() {
               <span className={`rounded-full px-1.5 py-0.5 text-xs font-semibold ${
                 activeTab === tab.key
                   ? 'bg-primary text-primary-foreground'
-                  : 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300'
+                  : 'bg-muted text-muted-foreground'
               }`}>
                 {tab.count}
               </span>
@@ -156,15 +156,15 @@ export default function NotificationsPage() {
       </div>
 
       {/* Alert list */}
-      <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 overflow-hidden">
+      <div className="rounded-xl border border-border bg-white overflow-hidden">
         {activeTab === 'low_stock' && (
           <div>
-            <div className="border-b border-slate-100 dark:border-slate-800 px-6 py-4">
+            <div className="border-b border-border px-6 py-4">
               <div className="flex items-center gap-2">
                 <AlertTriangle className="h-5 w-5 text-amber-500" />
                 <div>
-                  <h2 className="font-semibold text-slate-900 dark:text-slate-100">Low Stock Alerts</h2>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">Products below their reorder level that need restocking</p>
+                  <h2 className="font-semibold text-foreground">Low Stock Alerts</h2>
+                  <p className="text-xs text-muted-foreground">Products below their reorder level that need restocking</p>
                 </div>
               </div>
             </div>
@@ -173,12 +173,12 @@ export default function NotificationsPage() {
         )}
         {activeTab === 'expiring' && (
           <div>
-            <div className="border-b border-slate-100 dark:border-slate-800 px-6 py-4">
+            <div className="border-b border-border px-6 py-4">
               <div className="flex items-center gap-2">
                 <Clock className="h-5 w-5 text-orange-500" />
                 <div>
-                  <h2 className="font-semibold text-slate-900 dark:text-slate-100">Expiring Soon</h2>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">Products expiring within {EXPIRING_THRESHOLD} days</p>
+                  <h2 className="font-semibold text-foreground">Expiring Soon</h2>
+                  <p className="text-xs text-muted-foreground">Products expiring within {EXPIRING_THRESHOLD} days</p>
                 </div>
               </div>
             </div>
@@ -187,12 +187,12 @@ export default function NotificationsPage() {
         )}
         {activeTab === 'expired' && (
           <div>
-            <div className="border-b border-slate-100 dark:border-slate-800 px-6 py-4">
+            <div className="border-b border-border px-6 py-4">
               <div className="flex items-center gap-2">
                 <AlertTriangle className="h-5 w-5 text-red-500" />
                 <div>
-                  <h2 className="font-semibold text-slate-900 dark:text-slate-100">Expired Products</h2>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">Products past their expiry date — remove from stock immediately</p>
+                  <h2 className="font-semibold text-foreground">Expired Products</h2>
+                  <p className="text-xs text-muted-foreground">Products past their expiry date — remove from stock immediately</p>
                 </div>
               </div>
             </div>
@@ -223,7 +223,7 @@ function AlertTable({
 
   if (items.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center gap-2 py-16 text-slate-400">
+      <div className="flex flex-col items-center justify-center gap-2 py-16 text-muted-foreground">
         <Bell className="h-10 w-10" />
         <p className="text-sm font-medium">No alerts in this category</p>
       </div>
@@ -234,42 +234,42 @@ function AlertTable({
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
         <thead>
-          <tr className="border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50">
-            <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Product Name</th>
-            <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
+          <tr className="border-b border-border bg-muted/30">
+            <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Product Name</th>
+            <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               {type === 'low_stock' ? 'Current Stock' : 'Stock'}
             </th>
-            <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
+            <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               {type === 'low_stock' ? 'Reorder Level' : 'Expiry Date'}
             </th>
-            <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
+            <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               {type === 'low_stock' ? 'Deficit' : 'Days Left'}
             </th>
-            <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Status</th>
+            <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Status</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+        <tbody className="divide-y divide-border">
           {items.map(item => {
             const deficit = item.reorder_point - item.available_stock
             const daysLeft = item.days_to_nearest_expiry
 
             return (
-              <tr key={item.inventory_id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
-                <td className="px-6 py-4 font-medium text-slate-900 dark:text-slate-100">
+              <tr key={item.inventory_id} className="hover:bg-muted/20 transition-colors">
+                <td className="px-6 py-4 font-medium text-foreground">
                   {item.medication_name}
-                  {item.strength && <span className="ml-1 text-xs text-slate-400">{item.strength}</span>}
+                  {item.strength && <span className="ml-1 text-xs text-muted-foreground">{item.strength}</span>}
                 </td>
-                <td className="px-6 py-4 font-semibold text-amber-600 dark:text-amber-400">
+                <td className="px-6 py-4 font-semibold text-amber-600">
                   {item.available_stock}
                 </td>
-                <td className="px-6 py-4 text-slate-600 dark:text-slate-400">
+                <td className="px-6 py-4 text-muted-foreground">
                   {type === 'low_stock'
                     ? item.reorder_point
                     : item.nearest_expiry_date
                       ? new Date(item.nearest_expiry_date).toLocaleDateString('en-GH', { day: '2-digit', month: 'short', year: 'numeric' })
                       : '—'}
                 </td>
-                <td className="px-6 py-4 text-slate-500 dark:text-slate-400">
+                <td className="px-6 py-4 text-muted-foreground">
                   {type === 'low_stock'
                     ? (deficit > 0 ? `${deficit} units short` : '0 units short')
                     : (daysLeft !== null ? (daysLeft <= 0 ? 'Expired' : `${daysLeft} days`) : '—')}
@@ -281,8 +281,8 @@ function AlertTable({
                       type === 'expired'
                         ? ''
                         : type === 'expiring'
-                          ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400'
-                          : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
+                          ? 'bg-orange-100 text-orange-700 '
+                          : 'bg-amber-100 text-amber-700 '
                     }
                   >
                     {type === 'low_stock' ? 'Low Stock' : type === 'expiring' ? 'Expiring Soon' : 'Expired'}

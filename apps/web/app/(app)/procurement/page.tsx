@@ -34,11 +34,11 @@ type Tab = 'purchase_orders' | 'suppliers'
 // ── Status badge ──────────────────────────────────────────────────────────────
 
 const STATUS_CONFIG: Record<POStatus, { label: string; className: string; Icon: typeof Clock }> = {
-  draft:      { label: 'Draft',     className: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400',           Icon: Clock },
-  ordered:    { label: 'Ordered',   className: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',             Icon: Truck },
-  partial:    { label: 'Partial',   className: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',         Icon: PackageCheck },
-  received:   { label: 'Received',  className: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400', Icon: CheckCircle2 },
-  cancelled:  { label: 'Cancelled', className: 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400',                 Icon: XCircle },
+  draft:      { label: 'Draft',     className: 'bg-muted text-muted-foreground',           Icon: Clock },
+  ordered:    { label: 'Ordered',   className: 'bg-blue-100 text-blue-700',               Icon: Truck },
+  partial:    { label: 'Partial',   className: 'bg-amber-100 text-amber-700',             Icon: PackageCheck },
+  received:   { label: 'Received',  className: 'bg-[hsl(175_35%_91%)] text-[#004741]',   Icon: CheckCircle2 },
+  cancelled:  { label: 'Cancelled', className: 'bg-red-100 text-red-600',                 Icon: XCircle },
 }
 
 function StatusBadge({ status }: { status: POStatus }) {
@@ -158,9 +158,9 @@ function CreatePOModal({
             </div>
             <div className="space-y-2">
               {items.map((item, idx) => (
-                <div key={idx} className="grid grid-cols-12 gap-2 items-end rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 p-3">
+                <div key={idx} className="grid grid-cols-12 gap-2 items-end rounded-lg border border-border bg-muted/30 p-3">
                   <div className="col-span-12 sm:col-span-4 space-y-1">
-                    {idx === 0 && <p className="text-xs text-slate-500 font-medium">Medication</p>}
+                    {idx === 0 && <p className="text-xs text-muted-foreground font-medium">Medication</p>}
                     <Select value={item.medicationId} onValueChange={v => updateLine(idx, 'medicationId', v)}>
                       <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Select…" /></SelectTrigger>
                       <SelectContent>
@@ -171,23 +171,23 @@ function CreatePOModal({
                     </Select>
                   </div>
                   <div className="col-span-3 sm:col-span-2 space-y-1">
-                    {idx === 0 && <p className="text-xs text-slate-500 font-medium">Qty</p>}
+                    {idx === 0 && <p className="text-xs text-muted-foreground font-medium">Qty</p>}
                     <Input className="h-8 text-xs" type="number" min="1" value={item.quantityOrdered} onChange={e => updateLine(idx, 'quantityOrdered', e.target.value)} />
                   </div>
                   <div className="col-span-3 sm:col-span-2 space-y-1">
-                    {idx === 0 && <p className="text-xs text-slate-500 font-medium">Unit Cost</p>}
+                    {idx === 0 && <p className="text-xs text-muted-foreground font-medium">Unit Cost</p>}
                     <Input className="h-8 text-xs" type="number" min="0" step="0.01" value={item.unitCost} onChange={e => updateLine(idx, 'unitCost', e.target.value)} />
                   </div>
                   <div className="col-span-3 sm:col-span-2 space-y-1">
-                    {idx === 0 && <p className="text-xs text-slate-500 font-medium">Batch</p>}
+                    {idx === 0 && <p className="text-xs text-muted-foreground font-medium">Batch</p>}
                     <Input className="h-8 text-xs" value={item.batchNumber} onChange={e => updateLine(idx, 'batchNumber', e.target.value)} placeholder="Optional" />
                   </div>
                   <div className="col-span-3 sm:col-span-2 space-y-1">
-                    {idx === 0 && <p className="text-xs text-slate-500 font-medium">Expiry</p>}
+                    {idx === 0 && <p className="text-xs text-muted-foreground font-medium">Expiry</p>}
                     <Input className="h-8 text-xs" type="date" value={item.expiryDate} onChange={e => updateLine(idx, 'expiryDate', e.target.value)} />
                   </div>
                   <div className="col-span-1 flex items-center justify-center">
-                    <button type="button" onClick={() => removeLine(idx)} disabled={items.length === 1} className="p-1 rounded text-slate-400 hover:text-destructive transition-colors disabled:opacity-30">
+                    <button type="button" onClick={() => removeLine(idx)} disabled={items.length === 1} className="p-1 rounded text-muted-foreground hover:text-destructive transition-colors disabled:opacity-30">
                       <X className="h-3.5 w-3.5" />
                     </button>
                   </div>
@@ -254,28 +254,28 @@ function ReceivePOModal({
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <PackageCheck className="h-5 w-5 text-emerald-500" />
+            <PackageCheck className="h-5 w-5 text-[#004741]" />
             Receive Stock — {po.po_number}
           </DialogTitle>
         </DialogHeader>
         <div className="space-y-3 pt-2">
-          <p className="text-sm text-slate-500">Enter the actual quantity received for each item.</p>
+          <p className="text-sm text-muted-foreground">Enter the actual quantity received for each item.</p>
           <div className="space-y-2">
             {items.map(item => {
               const remaining = item.quantity_ordered - item.quantity_received
               return (
-                <div key={item.id} className={`rounded-lg border p-3 grid grid-cols-12 gap-3 items-center ${remaining <= 0 ? 'opacity-50 border-slate-100 dark:border-slate-800' : 'border-slate-200 dark:border-slate-700'}`}>
+                <div key={item.id} className={`rounded-lg border p-3 grid grid-cols-12 gap-3 items-center ${remaining <= 0 ? 'opacity-50 border-border' : 'border-border'}`}>
                   <div className="col-span-6">
-                    <p className="text-sm font-medium text-slate-900 dark:text-slate-100">{item.medication_name}</p>
-                    <p className="text-xs text-slate-500">Ordered: {item.quantity_ordered} · Received: {item.quantity_received}</p>
-                    {item.batch_number && <p className="text-xs font-mono text-slate-400">Batch: {item.batch_number}</p>}
+                    <p className="text-sm font-medium text-foreground">{item.medication_name}</p>
+                    <p className="text-xs text-muted-foreground">Ordered: {item.quantity_ordered} · Received: {item.quantity_received}</p>
+                    {item.batch_number && <p className="text-xs font-mono text-muted-foreground">Batch: {item.batch_number}</p>}
                   </div>
                   <div className="col-span-3 text-center">
-                    <p className="text-xs text-slate-500 mb-1">Pending</p>
-                    <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">{remaining}</p>
+                    <p className="text-xs text-muted-foreground mb-1">Pending</p>
+                    <p className="text-sm font-semibold text-foreground">{remaining}</p>
                   </div>
                   <div className="col-span-3">
-                    <p className="text-xs text-slate-500 mb-1">Receive now</p>
+                    <p className="text-xs text-muted-foreground mb-1">Receive now</p>
                     <Input
                       type="number" min="0" max={remaining} className="h-8 text-xs text-center"
                       value={quantities[item.id] ?? '0'}
@@ -290,7 +290,7 @@ function ReceivePOModal({
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose} disabled={saving}>Cancel</Button>
-          <Button onClick={() => void handleReceive()} disabled={saving} className="bg-emerald-600 hover:bg-emerald-700 text-white">
+          <Button onClick={() => void handleReceive()} disabled={saving} className="bg-[#004741] hover:bg-[#006B60] text-white">
             {saving ? 'Receiving…' : <><PackageCheck className="mr-2 h-4 w-4" />Confirm Receipt</>}
           </Button>
         </DialogFooter>
@@ -408,11 +408,11 @@ export default function ProcurementPage() {
       {/* Header */}
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
             <Truck className="h-6 w-6 text-primary" />
             Procurement
           </h1>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">Create purchase orders and manage suppliers.</p>
+          <p className="text-sm text-muted-foreground mt-0.5">Create purchase orders and manage suppliers.</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={() => void load()} disabled={loading}>
@@ -436,13 +436,13 @@ export default function ProcurementPage() {
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {[
           { label: 'Total Orders', value: orders.length },
-          { label: 'Active Orders', value: activePOs, color: activePOs > 0 ? 'text-blue-600 dark:text-blue-400' : '' },
-          { label: 'Received', value: orders.filter(o => o.status === 'received').length, color: 'text-emerald-600 dark:text-emerald-400' },
+          { label: 'Active Orders', value: activePOs, color: activePOs > 0 ? 'text-blue-600' : '' },
+          { label: 'Received', value: orders.filter(o => o.status === 'received').length, color: 'text-[#004741]' },
           { label: 'Suppliers', value: suppliers.length },
         ].map(card => (
-          <div key={card.label} className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4">
-            <p className="text-xs text-slate-500 dark:text-slate-400">{card.label}</p>
-            <p className={`text-2xl font-bold mt-1 ${card.color ?? 'text-slate-900 dark:text-slate-100'}`}>
+          <div key={card.label} className="rounded-xl border border-border bg-white p-4">
+            <p className="text-xs text-muted-foreground">{card.label}</p>
+            <p className={`text-2xl font-bold mt-1 ${card.color ?? 'text-foreground'}`}>
               {loading ? '—' : card.value}
             </p>
           </div>
@@ -450,7 +450,7 @@ export default function ProcurementPage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-0 border-b border-slate-200 dark:border-slate-700">
+      <div className="flex gap-0 border-b border-border">
         {(['purchase_orders', 'suppliers'] as Tab[]).map(t => (
           <button
             key={t}
@@ -458,7 +458,7 @@ export default function ProcurementPage() {
             className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
               tab === t
                 ? 'border-primary text-primary'
-                : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
+                : 'border-transparent text-muted-foreground hover:text-foreground'
             }`}
           >
             {t === 'purchase_orders' ? 'Purchase Orders' : 'Suppliers'}
@@ -471,7 +471,7 @@ export default function ProcurementPage() {
         <div className="space-y-4">
           <div className="flex flex-col gap-3 sm:flex-row">
             <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search PO number or supplier…" className="pl-9" />
             </div>
             <Select value={statusFilter} onValueChange={v => setStatusFilter(v as POStatus | 'all')}>
@@ -485,13 +485,13 @@ export default function ProcurementPage() {
             </Select>
           </div>
 
-          <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 overflow-hidden">
+          <div className="rounded-xl border border-border bg-white overflow-hidden">
             {loading ? (
               <div className="p-6 space-y-3">
                 {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-16 w-full" />)}
               </div>
             ) : filteredOrders.length === 0 ? (
-              <div className="flex flex-col items-center gap-2 py-16 text-slate-400">
+              <div className="flex flex-col items-center gap-2 py-16 text-muted-foreground">
                 <Truck className="h-10 w-10" />
                 <p className="text-sm font-medium">
                   {orders.length === 0 ? 'No purchase orders yet.' : 'No orders match your filter.'}
@@ -506,32 +506,32 @@ export default function ProcurementPage() {
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50">
-                      <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">PO Number</th>
-                      <th className="hidden px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 sm:table-cell">Supplier</th>
-                      <th className="hidden px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 md:table-cell">Expected</th>
-                      <th className="px-5 py-3 text-center text-xs font-semibold uppercase tracking-wider text-slate-500">Status</th>
-                      <th className="px-5 py-3 text-right text-xs font-semibold uppercase tracking-wider text-slate-500">Actions</th>
+                    <tr className="border-b border-border bg-muted/30">
+                      <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">PO Number</th>
+                      <th className="hidden px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground sm:table-cell">Supplier</th>
+                      <th className="hidden px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground md:table-cell">Expected</th>
+                      <th className="px-5 py-3 text-center text-xs font-semibold uppercase tracking-wider text-muted-foreground">Status</th>
+                      <th className="px-5 py-3 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">Actions</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                  <tbody className="divide-y divide-border">
                     {filteredOrders.map(po => (
-                      <tr key={po.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
+                      <tr key={po.id} className="hover:bg-muted/20 transition-colors">
                         <td className="px-5 py-4">
-                          <p className="font-mono text-sm font-semibold text-slate-900 dark:text-slate-100">{po.po_number}</p>
-                          <p className="text-xs text-slate-400 mt-0.5">{new Date(po.created_at).toLocaleDateString('en-GH', { day: '2-digit', month: 'short', year: 'numeric' })}</p>
+                          <p className="font-mono text-sm font-semibold text-foreground">{po.po_number}</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">{new Date(po.created_at).toLocaleDateString('en-GH', { day: '2-digit', month: 'short', year: 'numeric' })}</p>
                         </td>
-                        <td className="hidden px-5 py-4 sm:table-cell text-sm text-slate-700 dark:text-slate-300">
-                          {po.supplier_name ?? <span className="text-slate-400">No supplier</span>}
+                        <td className="hidden px-5 py-4 sm:table-cell text-sm text-foreground">
+                          {po.supplier_name ?? <span className="text-muted-foreground">No supplier</span>}
                         </td>
-                        <td className="hidden px-5 py-4 md:table-cell text-sm text-slate-500">
+                        <td className="hidden px-5 py-4 md:table-cell text-sm text-muted-foreground">
                           {po.expected_date ? new Date(po.expected_date).toLocaleDateString('en-GH', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}
                         </td>
                         <td className="px-5 py-4 text-center"><StatusBadge status={po.status} /></td>
                         <td className="px-5 py-4 text-right">
                           <div className="flex items-center justify-end gap-2">
                             {['ordered', 'partial'].includes(po.status) && (
-                              <Button size="sm" className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => void openReceive(po)} disabled={loadingItems}>
+                              <Button size="sm" className="h-7 text-xs bg-[#004741] hover:bg-[#006B60] text-white" onClick={() => void openReceive(po)} disabled={loadingItems}>
                                 <PackageCheck className="mr-1 h-3.5 w-3.5" /> Receive
                               </Button>
                             )}
@@ -546,7 +546,7 @@ export default function ProcurementPage() {
                     ))}
                   </tbody>
                 </table>
-                <div className="border-t border-slate-100 dark:border-slate-800 px-5 py-2.5 text-xs text-slate-500">
+                <div className="border-t border-border px-5 py-2.5 text-xs text-muted-foreground">
                   {filteredOrders.length} of {orders.length} orders
                 </div>
               </div>
@@ -557,11 +557,11 @@ export default function ProcurementPage() {
 
       {/* Suppliers tab */}
       {tab === 'suppliers' && (
-        <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 overflow-hidden">
+        <div className="rounded-xl border border-border bg-white overflow-hidden">
           {loading ? (
             <div className="p-6 space-y-3">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-14 w-full" />)}</div>
           ) : suppliers.length === 0 ? (
-            <div className="flex flex-col items-center justify-center gap-3 py-20 text-slate-400">
+            <div className="flex flex-col items-center justify-center gap-3 py-20 text-muted-foreground">
               <Building2 className="h-12 w-12" />
               <div className="text-center">
                 <p className="font-medium">No suppliers yet</p>
@@ -574,36 +574,36 @@ export default function ProcurementPage() {
           ) : (
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50">
-                  <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Supplier</th>
-                  <th className="hidden px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 sm:table-cell">Contact</th>
-                  <th className="hidden px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 md:table-cell">Phone</th>
-                  <th className="hidden px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 lg:table-cell">Email</th>
-                  <th className="px-6 py-3 text-right text-xs font-semibold uppercase tracking-wider text-slate-500">Actions</th>
+                <tr className="border-b border-border bg-muted/30">
+                  <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Supplier</th>
+                  <th className="hidden px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground sm:table-cell">Contact</th>
+                  <th className="hidden px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground md:table-cell">Phone</th>
+                  <th className="hidden px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground lg:table-cell">Email</th>
+                  <th className="px-6 py-3 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+              <tbody className="divide-y divide-border">
                 {suppliers.map(s => (
-                  <tr key={s.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
+                  <tr key={s.id} className="hover:bg-muted/20 transition-colors">
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
-                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 dark:bg-slate-800 shrink-0">
-                          <Building2 className="h-4 w-4 text-slate-500" />
+                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-muted shrink-0">
+                          <Building2 className="h-4 w-4 text-muted-foreground" />
                         </div>
-                        <span className="font-medium text-slate-900 dark:text-slate-100">{s.name}</span>
+                        <span className="font-medium text-foreground">{s.name}</span>
                       </div>
                     </td>
-                    <td className="hidden px-6 py-4 text-slate-600 dark:text-slate-400 sm:table-cell">{s.contact_name ?? '—'}</td>
-                    <td className="hidden px-6 py-4 text-slate-600 dark:text-slate-400 md:table-cell">{s.phone ?? '—'}</td>
+                    <td className="hidden px-6 py-4 text-muted-foreground sm:table-cell">{s.contact_name ?? '—'}</td>
+                    <td className="hidden px-6 py-4 text-muted-foreground md:table-cell">{s.phone ?? '—'}</td>
                     <td className="hidden px-6 py-4 lg:table-cell">
-                      {s.email ? <a href={`mailto:${s.email}`} className="text-primary hover:underline">{s.email}</a> : <span className="text-slate-400">—</span>}
+                      {s.email ? <a href={`mailto:${s.email}`} className="text-primary hover:underline">{s.email}</a> : <span className="text-muted-foreground">—</span>}
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center justify-end gap-1">
-                        <button onClick={() => { setEditingSupplier(s); setSupplierForm({ name: s.name, contact_name: s.contact_name ?? '', phone: s.phone ?? '', email: s.email ?? '', address: s.address ?? '' }); setShowSupplierForm(true) }} className="rounded p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200 transition-colors">
+                        <button onClick={() => { setEditingSupplier(s); setSupplierForm({ name: s.name, contact_name: s.contact_name ?? '', phone: s.phone ?? '', email: s.email ?? '', address: s.address ?? '' }); setShowSupplierForm(true) }} className="rounded p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors">
                           <Pencil className="h-4 w-4" />
                         </button>
-                        <button onClick={() => void handleDeleteSupplier(s.id)} className="rounded p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20 dark:hover:text-red-400 transition-colors">
+                        <button onClick={() => void handleDeleteSupplier(s.id)} className="rounded p-1.5 text-muted-foreground hover:bg-red-50 hover:text-red-600 transition-colors">
                           <Trash2 className="h-4 w-4" />
                         </button>
                       </div>
@@ -638,10 +638,10 @@ export default function ProcurementPage() {
       {/* Add/Edit Supplier modal */}
       {showSupplierForm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-2xl bg-white dark:bg-slate-900 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-700 px-6 py-4">
-              <h2 className="font-semibold text-slate-900 dark:text-slate-100">{editingSupplier ? 'Edit Supplier' : 'Add Supplier'}</h2>
-              <button onClick={() => setShowSupplierForm(false)} className="rounded p-1 text-slate-400 hover:text-slate-600">
+          <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl">
+            <div className="flex items-center justify-between border-b border-border px-6 py-4">
+              <h2 className="font-semibold text-foreground">{editingSupplier ? 'Edit Supplier' : 'Add Supplier'}</h2>
+              <button onClick={() => setShowSupplierForm(false)} className="rounded p-1 text-muted-foreground hover:text-foreground">
                 <X className="h-5 w-5" />
               </button>
             </div>
@@ -670,7 +670,7 @@ export default function ProcurementPage() {
                 <Input id="s-address" value={supplierForm.address ?? ''} onChange={e => setSupplierForm(f => ({ ...f, address: e.target.value }))} placeholder="Street, City, Region" />
               </div>
             </div>
-            <div className="flex justify-end gap-3 border-t border-slate-200 dark:border-slate-700 px-6 py-4">
+            <div className="flex justify-end gap-3 border-t border-border px-6 py-4">
               <Button variant="outline" onClick={() => setShowSupplierForm(false)} disabled={savingSupplier}>Cancel</Button>
               <Button onClick={() => void handleSaveSupplier()} disabled={savingSupplier}>
                 {savingSupplier ? 'Saving…' : editingSupplier ? 'Save Changes' : 'Add Supplier'}

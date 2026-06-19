@@ -222,12 +222,49 @@ export async function importFromLibrary(
       }
 
       // Ensure inventory row exists for this branch
+      // onConflict must match the table's actual UNIQUE constraint: (branch_id, medication_id)
       await client
         .from('inventory')
         .upsert(
           { organization_id: organizationId, branch_id: branchId, medication_id: medicationId },
-          { onConflict: 'organization_id,branch_id,medication_id', ignoreDuplicates: true }
+          { onConflict: 'branch_id,medication_id', ignoreDuplicates: true }
         )
+
+      // If opening stock was specified, create a batch + stock movement.
+      // The trigger trg_stock_movement_update_inventory fires on the movement
+      // insert and updates inventory.current_stock — never set it directly.
+      if ((item.openingStock ?? 0) > 0) {
+        const { data: batch } = await client
+          .from('inventory_batches')
+          .insert({
+            organization_id:    organizationId,
+            branch_id:          branchId,
+            medication_id:      medicationId,
+            batch_number:       `OPEN-${Date.now()}`,
+            quantity_received:  item.openingStock,
+            quantity_remaining: item.openingStock,
+            cost_price:         item.purchasePrice ?? 0,
+            currency_code:      currencyCode,
+            created_by:         userId,
+          })
+          .select('id')
+          .single()
+
+        if (batch) {
+          await client
+            .from('stock_movements')
+            .insert({
+              organization_id: organizationId,
+              branch_id:       branchId,
+              medication_id:   medicationId,
+              batch_id:        (batch as { id: string }).id,
+              movement_type:   'opening_stock',
+              delta:           item.openingStock,
+              notes:           'Opening stock from library import',
+              performed_by:    userId,
+            })
+        }
+      }
     } catch (e) {
       result.errors.push(`Unexpected error for item ${item.libraryId}`)
     }

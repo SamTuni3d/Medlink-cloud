@@ -19,8 +19,8 @@ export default function PrescriptionsPage() {
       {/* Header */}
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Prescriptions</h1>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">Manage and dispense patient prescriptions</p>
+          <h1 className="text-2xl font-bold text-foreground">Prescriptions</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">Manage and dispense patient prescriptions</p>
         </div>
         <Button size="sm">
           <Plus className="mr-2 h-4 w-4" />
@@ -31,7 +31,7 @@ export default function PrescriptionsPage() {
       {/* Filters */}
       <div className="flex flex-col gap-3 sm:flex-row">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={search}
             onChange={e => setSearch(e.target.value)}
@@ -53,10 +53,10 @@ export default function PrescriptionsPage() {
       </div>
 
       {/* Empty state */}
-      <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 py-24 text-slate-400">
-        <FileText className="h-14 w-14 text-slate-200 dark:text-slate-700" />
+      <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-border bg-white py-24 text-muted-foreground">
+        <FileText className="h-14 w-14 text-muted" />
         <div className="text-center">
-          <p className="font-medium text-slate-500 dark:text-slate-400">No prescriptions found</p>
+          <p className="font-medium text-muted-foreground">No prescriptions found</p>
           <p className="mt-0.5 text-sm">Create a new prescription to get started</p>
         </div>
         <Button size="sm" variant="outline" className="mt-2">

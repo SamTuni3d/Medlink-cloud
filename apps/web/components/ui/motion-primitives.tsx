@@ -44,7 +44,7 @@ export function HoverCard({
 }) {
   return (
     <motion.div
-      whileHover={{ y: -4, boxShadow: '0 16px 40px -8px rgba(116,26,47,0.18)' }}
+      whileHover={{ y: -4, boxShadow: '0 16px 40px -8px rgba(0,71,65,0.18)' }}
       whileTap={{ scale: 0.985 }}
       transition={{ duration: 0.2, ease: 'easeOut' }}
       className={className}
@@ -232,7 +232,7 @@ export function MagneticItem({
 // ── Pulse ring (notification / status indicator) ─────────────────────────────
 
 export function PulseRing({
-  color = '#741A2F',
+  color = '#004741',
   size = 8,
 }: {
   color?: string

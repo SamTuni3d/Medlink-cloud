@@ -31,7 +31,7 @@ export function SignOutButton({ iconOnly = false }: SignOutButtonProps) {
         size="icon"
         onClick={handleSignOut}
         disabled={isPending}
-        className="h-7 w-7 shrink-0 text-slate-400 hover:text-destructive hover:bg-destructive/10"
+        className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
         title="Sign out"
       >
         <LogOut className="h-3.5 w-3.5" />

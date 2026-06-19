@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import {
   Package, Search, RefreshCw, AlertTriangle, Clock,
-  PackagePlus, PackageSearch, X, Tag, BookOpen,
+  PackagePlus, PackageSearch, X, Tag, BookOpen, Pencil, Trash2,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -19,11 +19,19 @@ import { useBranch } from '@/hooks/useBranch'
 import { useAuth } from '@/providers/auth-provider'
 import { useToast } from '@/hooks/use-toast'
 import { createClient } from '@/lib/supabase/client'
-import { getInventory, addMedicationWithStock } from '@medlink/data-client'
+import { getInventory } from '@medlink/data-client'
 import { formatCurrency } from '@/lib/formatCurrency'
 import { StaggerGrid, StaggerItem, HoverCard, SlideInRow } from '@/components/ui/motion-primitives'
 import type { InventoryWithBatches } from '@medlink/data-client'
-import { updateMedicationPriceAction } from './actions'
+import {
+  addMedicationAction,
+  ensureBranchInventoryAction,
+  updateMedicationDetailsAction,
+  adjustStockAction,
+  deactivateMedicationAction,
+} from './actions'
+import { seedMedicationsCache, seedInventoryCache } from '@/lib/sync/syncQueue'
+import { db } from '@/lib/dexie/db'
 import ImportFromLibraryModal from '@/components/inventory/ImportFromLibraryModal'
 
 type StockFilter = 'all' | 'in_stock' | 'low_stock' | 'out_of_stock' | 'expiring'
@@ -70,19 +78,19 @@ function SummaryCard({
   loading: boolean
 }) {
   return (
-    <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-5">
+    <div className="rounded-xl border border-border bg-white p-5">
       <div className="flex items-start justify-between">
-        <p className="text-sm text-slate-500 dark:text-slate-400">{label}</p>
+        <p className="text-sm text-muted-foreground">{label}</p>
         <Icon className={`h-5 w-5 ${
           accent === 'amber' ? 'text-amber-400' :
           accent === 'red'   ? 'text-red-400' :
-          'text-slate-300 dark:text-slate-600'
+          'text-muted-foreground/30'
         }`} />
       </div>
       {loading ? (
         <Skeleton className="mt-3 h-9 w-28" />
       ) : (
-        <p className="mt-2 text-3xl font-bold text-slate-900 dark:text-slate-100">{value}</p>
+        <p className="mt-2 text-3xl font-bold text-foreground">{value}</p>
       )}
     </div>
   )
@@ -121,7 +129,7 @@ function AddMedicationModal({
     setFormError(null)
     setSaving(true)
 
-    const result = await addMedicationWithStock(createClient(), {
+    const result = await addMedicationAction({
       organizationId,
       branchId,
       performedBy: userId,
@@ -147,6 +155,13 @@ function AddMedicationModal({
       setFormError(result.error.message)
       return
     }
+
+    // Sync Dexie so the POS shows the new medication and price immediately
+    const supabase = createClient()
+    void Promise.all([
+      seedMedicationsCache(supabase, organizationId),
+      seedInventoryCache(supabase, branchId),
+    ])
 
     toast({ title: 'Medication added', description: `${form.name.trim()} was added to inventory.` })
     setForm(EMPTY_FORM)
@@ -351,61 +366,105 @@ function AddMedicationModal({
   )
 }
 
-// ── Edit Price Modal ──────────────────────────────────────────────────────────
-function EditPriceModal({
-  open,
-  onClose,
-  onSaved,
-  medicationId,
-  medicationName,
-  currentPrice,
-  currency,
+// ── Edit Medication Modal ─────────────────────────────────────────────────────
+function EditMedicationModal({
+  open, onClose, onSaved,
+  row, currency,
+  organizationId, branchId, userId,
 }: {
   open: boolean
   onClose: () => void
-  onSaved: (medicationId: string, newPrice: number) => void
-  medicationId: string
-  medicationName: string
-  currentPrice: number
+  onSaved: (medicationId: string, updates: { sellingPrice?: number; newStock?: number; reorderPoint?: number }) => void
+  row: InventoryWithBatches
   currency: string
+  organizationId: string
+  branchId: string
+  userId: string
 }) {
-  const [price, setPrice] = useState(String(currentPrice))
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [price, setPrice]        = useState(String(row.selling_price))
+  const [newQty, setNewQty]      = useState(String(row.available_stock))
+  const [reorder, setReorder]    = useState(String(row.reorder_point))
+  const [saving, setSaving]      = useState(false)
+  const [error, setError]        = useState<string | null>(null)
   const { toast } = useToast()
 
   useEffect(() => {
-    if (open) setPrice(String(currentPrice))
-  }, [open, currentPrice])
+    if (open) {
+      setPrice(String(row.selling_price))
+      setNewQty(String(row.available_stock))
+      setReorder(String(row.reorder_point))
+      setError(null)
+    }
+  }, [open, row])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    const parsed = parseFloat(price)
-    if (isNaN(parsed) || parsed < 0) { setError('Enter a valid price'); return }
+    const parsedPrice   = parseFloat(price)
+    const parsedQty     = parseInt(newQty, 10)
+    const parsedReorder = parseInt(reorder, 10)
+
+    if (isNaN(parsedPrice) || parsedPrice < 0) { setError('Enter a valid selling price'); return }
+    if (isNaN(parsedQty)   || parsedQty < 0)   { setError('Quantity must be 0 or more'); return }
+    if (isNaN(parsedReorder) || parsedReorder < 0) { setError('Reorder point must be 0 or more'); return }
+
     setError(null)
     setSaving(true)
-    const result = await updateMedicationPriceAction(medicationId, parsed)
+
+    const delta = parsedQty - row.available_stock
+    const priceChanged   = parsedPrice   !== row.selling_price
+    const reorderChanged = parsedReorder !== row.reorder_point
+
+    const actions: Promise<{ ok: boolean; error?: { message: string } }>[] = []
+
+    if (priceChanged || reorderChanged) {
+      actions.push(updateMedicationDetailsAction({
+        medicationId: row.medication_id,
+        sellingPrice: parsedPrice,
+        reorderPoint: parsedReorder,
+      }))
+    }
+
+    if (delta !== 0) {
+      actions.push(adjustStockAction({
+        medicationId:   row.medication_id,
+        branchId,
+        organizationId,
+        performedBy:    userId,
+        delta,
+        notes:          'Manual stock adjustment from inventory',
+      }))
+    }
+
+    const results = await Promise.all(actions)
     setSaving(false)
-    if (!result.ok) { setError(result.error.message); return }
-    toast({ title: 'Price updated', description: `${medicationName} → ${formatCurrency(parsed, currency)}` })
-    onSaved(medicationId, parsed)
+
+    const failed = results.find(r => !r.ok)
+    if (failed && !failed.ok && failed.error) { setError(failed.error.message); return }
+
+    toast({ title: 'Medication updated', description: row.medication_name })
+    onSaved(row.medication_id, {
+      sellingPrice: parsedPrice,
+      newStock:     parsedQty,
+      reorderPoint: parsedReorder,
+    })
     onClose()
   }
+
+  const delta = parseInt(newQty, 10) - row.available_stock
 
   return (
     <Dialog open={open} onOpenChange={v => { if (!v && !saving) onClose() }}>
       <DialogContent className="max-w-sm">
         <DialogHeader>
-          <DialogTitle className="text-base font-semibold">Edit Selling Price</DialogTitle>
+          <DialogTitle className="text-base font-semibold">Edit Medication</DialogTitle>
         </DialogHeader>
-        <p className="text-sm text-muted-foreground -mt-1">{medicationName}</p>
+        <p className="text-sm text-muted-foreground -mt-1 truncate">{row.medication_name}</p>
+
         <form onSubmit={e => { void handleSubmit(e) }} className="space-y-4 pt-1">
           <div className="space-y-1.5">
-            <Label htmlFor="edit-price">
-              Selling Price ({currency === 'GHS' ? '₵' : currency})
-            </Label>
+            <Label htmlFor="em-price">Selling Price ({currency === 'GHS' ? '₵' : currency})</Label>
             <Input
-              id="edit-price"
+              id="em-price"
               type="number"
               min="0"
               step="0.01"
@@ -414,14 +473,93 @@ function EditPriceModal({
               autoFocus
             />
           </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="em-qty">
+              Stock Quantity
+              <span className="ml-2 text-xs text-muted-foreground font-normal">
+                Current: {row.available_stock}
+              </span>
+            </Label>
+            <Input
+              id="em-qty"
+              type="number"
+              min="0"
+              step="1"
+              value={newQty}
+              onChange={e => setNewQty(e.target.value)}
+            />
+            {!isNaN(delta) && delta !== 0 && (
+              <p className={`text-xs ${delta > 0 ? 'text-green-600' : 'text-amber-600'}`}>
+                {delta > 0 ? `+${delta} units will be added` : `${Math.abs(delta)} units will be removed`}
+              </p>
+            )}
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="em-reorder">Reorder Point (qty)</Label>
+            <Input
+              id="em-reorder"
+              type="number"
+              min="0"
+              step="1"
+              value={reorder}
+              onChange={e => setReorder(e.target.value)}
+            />
+          </div>
+
           {error && (
             <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</p>
           )}
+
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onClose} disabled={saving}>Cancel</Button>
-            <Button type="submit" disabled={saving}>{saving ? 'Saving…' : 'Save Price'}</Button>
+            <Button type="submit" disabled={saving}>{saving ? 'Saving…' : 'Save Changes'}</Button>
           </DialogFooter>
         </form>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+// ── Confirm Deactivate Dialog ─────────────────────────────────────────────────
+function ConfirmDeactivateDialog({
+  open, onClose, onConfirmed,
+  medicationName,
+}: {
+  open: boolean
+  onClose: () => void
+  onConfirmed: () => void
+  medicationName: string
+}) {
+  const [removing, setRemoving] = useState(false)
+
+  async function handleConfirm() {
+    setRemoving(true)
+    await onConfirmed()
+    setRemoving(false)
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={v => { if (!v && !removing) onClose() }}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle className="text-base font-semibold">Remove Medication?</DialogTitle>
+        </DialogHeader>
+        <p className="text-sm text-muted-foreground">
+          <span className="font-medium text-foreground">{medicationName}</span> will be hidden from
+          your inventory and POS. Stock history is kept. You can re-add it later.
+        </p>
+        <DialogFooter className="pt-2">
+          <Button variant="outline" onClick={onClose} disabled={removing}>Cancel</Button>
+          <Button
+            variant="destructive"
+            onClick={() => { void handleConfirm() }}
+            disabled={removing}
+          >
+            {removing ? 'Removing…' : 'Remove'}
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   )
@@ -437,20 +575,21 @@ export default function InventoryPage() {
   const [search, setSearch] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('all')
   const [stockFilter, setStockFilter] = useState<StockFilter>('all')
-  const [showAddModal, setShowAddModal]       = useState(false)
+  const [showAddModal, setShowAddModal]         = useState(false)
   const [showLibraryModal, setShowLibraryModal] = useState(false)
-  const [editPrice, setEditPrice] = useState<{
-    id: string; name: string; price: number
-  } | null>(null)
+  const [editMed, setEditMed]     = useState<InventoryWithBatches | null>(null)
+  const [deactivateMed, setDeactivateMed] = useState<InventoryWithBatches | null>(null)
 
   const load = useCallback(async () => {
-    if (!activeBranch) { setLoading(false); return }
+    if (!activeBranch || !organizationId) { setLoading(false); return }
     setLoading(true); setError(null)
+    // Backfill any inventory rows that were missed by earlier imports (idempotent)
+    await ensureBranchInventoryAction(organizationId, activeBranch.id)
     const result = await getInventory(createClient(), activeBranch.id)
     if (result.ok) setRows(result.data)
     else setError(result.error.message)
     setLoading(false)
-  }, [activeBranch])
+  }, [activeBranch, organizationId])
 
   useEffect(() => { void load() }, [load])
 
@@ -491,8 +630,8 @@ export default function InventoryPage() {
       {/* Header */}
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Inventory</h1>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">Manage your medication stock</p>
+          <h1 className="text-2xl font-bold text-foreground">Inventory</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">Manage your medication stock</p>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={() => void load()} disabled={loading}>
@@ -536,7 +675,7 @@ export default function InventoryPage() {
       {/* Search + Filters */}
       <div className="flex flex-col gap-3 sm:flex-row">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={search}
             onChange={e => setSearch(e.target.value)}
@@ -570,13 +709,13 @@ export default function InventoryPage() {
       </div>
 
       {/* Table */}
-      <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 overflow-hidden">
+      <div className="rounded-xl border border-border bg-white overflow-hidden">
         {loading ? (
           <div className="p-6 space-y-3">
             {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-16 w-full" />)}
           </div>
         ) : filtered.length === 0 ? (
-          <div className="flex flex-col items-center gap-2 py-16 text-slate-400">
+          <div className="flex flex-col items-center gap-2 py-16 text-muted-foreground">
             <PackageSearch className="h-10 w-10" />
             <p className="text-sm font-medium">No items found</p>
           </div>
@@ -584,17 +723,17 @@ export default function InventoryPage() {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50">
-                  <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Name</th>
-                  <th className="hidden px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 md:table-cell">Category</th>
-                  <th className="hidden px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 lg:table-cell">Strength / Form</th>
-                  <th className="hidden px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 xl:table-cell">Batch / Expiry</th>
-                  <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Stock</th>
-                  <th className="hidden px-5 py-3 text-right text-xs font-semibold uppercase tracking-wider text-slate-500 lg:table-cell">Selling</th>
-                  <th className="px-5 py-3 text-center text-xs font-semibold uppercase tracking-wider text-slate-500">Actions</th>
+                <tr className="border-b border-border bg-muted/30">
+                  <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Name</th>
+                  <th className="hidden px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground md:table-cell">Category</th>
+                  <th className="hidden px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground lg:table-cell">Strength / Form</th>
+                  <th className="hidden px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground xl:table-cell">Batch / Expiry</th>
+                  <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Stock</th>
+                  <th className="hidden px-5 py-3 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground lg:table-cell">Selling</th>
+                  <th className="px-5 py-3 text-center text-xs font-semibold uppercase tracking-wider text-muted-foreground">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+              <tbody className="divide-y divide-border/60">
                 {filtered.map((row) => {
                   const isLowStock = row.available_stock <= row.reorder_point
                   const isOut      = row.available_stock === 0
@@ -605,28 +744,28 @@ export default function InventoryPage() {
                   return (
                     <SlideInRow key={row.inventory_id}>
                       <td className="px-5 py-4">
-                        <p className="font-medium text-slate-900 dark:text-slate-100">{row.medication_name}</p>
+                        <p className="font-medium text-foreground">{row.medication_name}</p>
                         {row.generic_name && (
-                          <p className="text-xs text-primary/70 dark:text-primary/60 mt-0.5">{row.generic_name}</p>
+                          <p className="text-xs text-primary/70 mt-0.5">{row.generic_name}</p>
                         )}
                       </td>
                       <td className="hidden px-5 py-4 md:table-cell">
                         {row.category ? (
-                          <span className="inline-flex items-center rounded-md bg-slate-100 dark:bg-slate-800 px-2 py-0.5 text-xs font-medium text-slate-700 dark:text-slate-300">
+                          <span className="inline-flex items-center rounded-md bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
                             {row.category}
                           </span>
-                        ) : <span className="text-slate-400">—</span>}
+                        ) : <span className="text-muted-foreground/50">—</span>}
                       </td>
                       <td className="hidden px-5 py-4 lg:table-cell">
                         {row.strength && (
-                          <p className="text-xs font-medium text-slate-700 dark:text-slate-300">{row.strength}</p>
+                          <p className="text-xs font-medium text-foreground">{row.strength}</p>
                         )}
-                        <p className="text-xs text-slate-500 dark:text-slate-400">{row.dosage_form}</p>
+                        <p className="text-xs text-muted-foreground">{row.dosage_form}</p>
                       </td>
                       <td className="hidden px-5 py-4 xl:table-cell">
                         {row.nearest_expiry_date ? (
                           <>
-                            <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
+                            <p className="text-xs font-medium text-muted-foreground">
                               {new Date(row.nearest_expiry_date).toLocaleDateString('en-GH', {
                                 day: '2-digit', month: 'short', year: 'numeric',
                               })}
@@ -635,31 +774,31 @@ export default function InventoryPage() {
                               <p className="text-[10px] text-orange-500 mt-0.5">{row.days_to_nearest_expiry}d left</p>
                             )}
                           </>
-                        ) : <span className="text-slate-400 text-xs">—</span>}
+                        ) : <span className="text-muted-foreground/50 text-xs">—</span>}
                       </td>
                       <td className="px-5 py-4">
                         <p className={`font-semibold text-base ${
-                          isOut      ? 'text-red-600 dark:text-red-400' :
-                          isLowStock ? 'text-amber-600 dark:text-amber-400' :
-                          'text-slate-900 dark:text-slate-100'
+                          isOut      ? 'text-red-600' :
+                          isLowStock ? 'text-amber-600' :
+                          'text-foreground'
                         }`}>
                           {row.available_stock}
                         </p>
                         <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold mt-0.5 ${
                           isOut
-                            ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                            ? 'bg-red-100 text-red-700'
                             : isLowStock
-                              ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
-                              : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
-                        }`}>
+                              ? 'bg-amber-100 text-amber-700'
+                              : 'text-[#004741]'
+                        }`} style={!isOut && !isLowStock ? { background: 'hsl(175 35% 91%)' } : {}}>
                           {isOut ? 'Out of Stock' : isLowStock ? 'Low Stock' : 'In Stock'}
                         </span>
                       </td>
                       <td className="hidden px-5 py-4 text-right lg:table-cell">
                         <button
-                          onClick={() => setEditPrice({ id: row.medication_id, name: row.medication_name, price: row.selling_price })}
-                          className="group flex items-center justify-end gap-1.5 text-sm font-medium text-slate-700 dark:text-slate-300 hover:text-primary transition-colors"
-                          title="Edit price"
+                          onClick={() => setEditMed(row)}
+                          className="group flex items-center justify-end gap-1.5 text-sm font-medium text-foreground hover:text-primary transition-colors"
+                          title="Edit medication"
                         >
                           {formatCurrency(row.selling_price, row.currency_code)}
                           <Tag className="h-3 w-3 opacity-0 group-hover:opacity-60 transition-opacity" />
@@ -668,17 +807,18 @@ export default function InventoryPage() {
                       <td className="px-5 py-4 text-center">
                         <div className="flex items-center justify-center gap-1">
                           <button
-                            className="rounded-lg p-2 text-slate-400 hover:bg-primary/10 hover:text-primary dark:hover:bg-primary/20 transition-colors"
-                            title="Receive stock"
+                            onClick={() => setEditMed(row)}
+                            className="rounded-lg p-2 text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors"
+                            title="Edit medication"
                           >
-                            <PackagePlus className="h-4 w-4" />
+                            <Pencil className="h-4 w-4" />
                           </button>
                           <button
-                            onClick={() => setEditPrice({ id: row.medication_id, name: row.medication_name, price: row.selling_price })}
-                            className="rounded-lg p-2 text-slate-400 hover:bg-primary/10 hover:text-primary dark:hover:bg-primary/20 transition-colors"
-                            title="Edit selling price"
+                            onClick={() => setDeactivateMed(row)}
+                            className="rounded-lg p-2 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
+                            title="Remove medication"
                           >
-                            <Tag className="h-4 w-4" />
+                            <Trash2 className="h-4 w-4" />
                           </button>
                         </div>
                       </td>
@@ -687,7 +827,7 @@ export default function InventoryPage() {
                 })}
               </tbody>
             </table>
-            <div className="border-t border-slate-100 dark:border-slate-800 px-5 py-2.5 text-xs text-slate-500">
+            <div className="border-t border-border px-5 py-2.5 text-xs text-muted-foreground">
               Showing {filtered.length} of {rows.length} products
             </div>
           </div>
@@ -702,6 +842,12 @@ export default function InventoryPage() {
           onImported={() => {
             void load()
             setShowLibraryModal(false)
+            // Sync Dexie so POS reflects imported medications immediately
+            const supabase = createClient()
+            void Promise.all([
+              seedMedicationsCache(supabase, organizationId),
+              seedInventoryCache(supabase, activeBranch.id),
+            ])
           }}
           organizationId={organizationId}
           branchId={activeBranch.id}
@@ -723,21 +869,53 @@ export default function InventoryPage() {
         />
       )}
 
-      {/* Edit Price Modal */}
-      {editPrice && (
-        <EditPriceModal
-          open={!!editPrice}
-          onClose={() => setEditPrice(null)}
-          onSaved={(id, newPrice) => {
-            setRows(prev => prev.map(r =>
-              r.medication_id === id ? { ...r, selling_price: newPrice } : r
-            ))
-            setEditPrice(null)
+      {/* Edit Medication Modal */}
+      {editMed && activeBranch && organizationId && user && (
+        <EditMedicationModal
+          open={!!editMed}
+          onClose={() => setEditMed(null)}
+          onSaved={(id, updates) => {
+            setRows(prev => prev.map(r => {
+              if (r.medication_id !== id) return r
+              return {
+                ...r,
+                selling_price:   updates.sellingPrice  ?? r.selling_price,
+                available_stock: updates.newStock       ?? r.available_stock,
+                reorder_point:   updates.reorderPoint   ?? r.reorder_point,
+              }
+            }))
+            setEditMed(null)
+            if (updates.sellingPrice !== undefined) {
+              void db.medications_cache.update(id, { selling_price: updates.sellingPrice })
+            }
+            if (updates.newStock !== undefined) {
+              const supabase = createClient()
+              void seedInventoryCache(supabase, activeBranch.id)
+            }
           }}
-          medicationId={editPrice.id}
-          medicationName={editPrice.name}
-          currentPrice={editPrice.price}
+          row={editMed}
           currency={currency}
+          organizationId={organizationId}
+          branchId={activeBranch.id}
+          userId={user.id}
+        />
+      )}
+
+      {/* Confirm Deactivate Dialog */}
+      {deactivateMed && (
+        <ConfirmDeactivateDialog
+          open={!!deactivateMed}
+          onClose={() => setDeactivateMed(null)}
+          onConfirmed={async () => {
+            const result = await deactivateMedicationAction(deactivateMed.medication_id)
+            if (result.ok) {
+              setRows(prev => prev.filter(r => r.medication_id !== deactivateMed.medication_id))
+              // Remove from Dexie so POS no longer shows it
+              void db.medications_cache.delete(deactivateMed.medication_id)
+            }
+            setDeactivateMed(null)
+          }}
+          medicationName={deactivateMed.medication_name}
         />
       )}
     </div>

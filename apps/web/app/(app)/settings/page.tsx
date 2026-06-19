@@ -148,7 +148,7 @@ export default function SettingsPage() {
       {message && (
         <p className={`rounded-md px-4 py-3 text-sm ${
           message.type === 'ok'
-            ? 'bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300'
+            ? 'bg-[hsl(175_35%_91%)] text-[#004741]'
             : 'bg-destructive/10 text-destructive'
         }`}>
           {message.text}

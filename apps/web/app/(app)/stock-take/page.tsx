@@ -30,10 +30,10 @@ type SortKey = 'name' | 'category' | 'delta'
 type SortDir = 'asc' | 'desc'
 
 function deltaClass(delta: number) {
-  if (delta === 0) return 'text-slate-400'
+  if (delta === 0) return 'text-muted-foreground'
   return delta > 0
-    ? 'text-emerald-600 dark:text-emerald-400 font-semibold'
-    : 'text-red-600 dark:text-red-400 font-semibold'
+    ? 'text-[#004741] font-semibold'
+    : 'text-red-600 font-semibold'
 }
 
 function deltaLabel(delta: number) {
@@ -196,11 +196,11 @@ export default function StockTakePage() {
       {/* Header */}
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
             <ClipboardCheck className="h-6 w-6 text-primary" />
             Stock Take
           </h1>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
+          <p className="text-sm text-muted-foreground mt-0.5">
             Enter the physical count for each medication. Discrepancies are adjusted automatically.
           </p>
         </div>
@@ -222,13 +222,13 @@ export default function StockTakePage() {
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           {[
             { label: 'Total Items',    value: rows.length,            color: '' },
-            { label: 'Counted',        value: counted,                color: 'text-emerald-600 dark:text-emerald-400' },
-            { label: 'Uncounted',      value: uncounted,              color: uncounted > 0 ? 'text-amber-600 dark:text-amber-400' : '' },
-            { label: 'Discrepancies',  value: discrepancies.length,   color: discrepancies.length > 0 ? 'text-red-600 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400' },
+            { label: 'Counted',        value: counted,                color: 'text-[#004741]' },
+            { label: 'Uncounted',      value: uncounted,              color: uncounted > 0 ? 'text-amber-600' : '' },
+            { label: 'Discrepancies',  value: discrepancies.length,   color: discrepancies.length > 0 ? 'text-red-600' : 'text-[#004741]' },
           ].map(card => (
-            <div key={card.label} className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4">
-              <p className="text-xs text-slate-500 dark:text-slate-400">{card.label}</p>
-              <p className={`text-2xl font-bold mt-1 ${card.color || 'text-slate-900 dark:text-slate-100'}`}>{card.value}</p>
+            <div key={card.label} className="rounded-xl border border-border bg-white p-4">
+              <p className="text-xs text-muted-foreground">{card.label}</p>
+              <p className={`text-2xl font-bold mt-1 ${card.color || 'text-foreground'}`}>{card.value}</p>
             </div>
           ))}
         </div>
@@ -238,10 +238,10 @@ export default function StockTakePage() {
       {discrepancies.length > 0 && (
         <div className={`flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium ${
           netDelta === 0
-            ? 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300'
+            ? 'bg-muted text-muted-foreground'
             : netDelta > 0
-              ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300'
-              : 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300'
+              ? 'text-[#004741]'
+              : 'bg-red-50 text-red-700'
         }`}>
           <AlertTriangle className="h-4 w-4 shrink-0" />
           {discrepancies.length} item{discrepancies.length !== 1 ? 's' : ''} differ from system count —
@@ -252,7 +252,7 @@ export default function StockTakePage() {
       {/* Filters */}
       <div className="flex flex-col gap-3 sm:flex-row">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={search}
             onChange={e => setSearch(e.target.value)}
@@ -272,47 +272,47 @@ export default function StockTakePage() {
       </div>
 
       {/* Count sheet table */}
-      <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 overflow-hidden">
+      <div className="rounded-xl border border-border bg-white overflow-hidden">
         {loading ? (
           <div className="p-6 space-y-3">
             {Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} className="h-14 w-full" />)}
           </div>
         ) : displayRows.length === 0 ? (
-          <div className="py-16 text-center text-sm text-slate-400">
+          <div className="py-16 text-center text-sm text-muted-foreground">
             {showDiscrepanciesOnly ? 'No discrepancies yet — all counts match.' : 'No medications found.'}
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50">
+                <tr className="border-b border-border bg-muted/30">
                   <th
-                    className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 cursor-pointer select-none"
+                    className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground cursor-pointer select-none"
                     onClick={() => toggleSort('name')}
                   >
                     <span className="flex items-center gap-1">Medication <SortIcon k="name" /></span>
                   </th>
                   <th
-                    className="hidden px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 cursor-pointer select-none md:table-cell"
+                    className="hidden px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground cursor-pointer select-none md:table-cell"
                     onClick={() => toggleSort('category')}
                   >
                     <span className="flex items-center gap-1">Category <SortIcon k="category" /></span>
                   </th>
-                  <th className="px-5 py-3 text-center text-xs font-semibold uppercase tracking-wider text-slate-500">
+                  <th className="px-5 py-3 text-center text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                     System
                   </th>
-                  <th className="px-5 py-3 text-center text-xs font-semibold uppercase tracking-wider text-slate-500">
+                  <th className="px-5 py-3 text-center text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                     Physical Count
                   </th>
                   <th
-                    className="px-5 py-3 text-center text-xs font-semibold uppercase tracking-wider text-slate-500 cursor-pointer select-none"
+                    className="px-5 py-3 text-center text-xs font-semibold uppercase tracking-wider text-muted-foreground cursor-pointer select-none"
                     onClick={() => toggleSort('delta')}
                   >
                     <span className="flex items-center justify-center gap-1">Variance <SortIcon k="delta" /></span>
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+              <tbody className="divide-y divide-border">
                 {displayRows.map((row, idx) => {
                   const phys = parseInt(row.physicalCount)
                   const delta = isNaN(phys) ? 0 : phys - row.systemCount
@@ -320,23 +320,23 @@ export default function StockTakePage() {
                   return (
                     <tr
                       key={row.medicationId}
-                      className={hasDiscrepancy ? 'bg-amber-50/60 dark:bg-amber-900/10' : ''}
+                      className={hasDiscrepancy ? 'bg-amber-50/60' : ''}
                     >
                       <td className="px-5 py-3">
-                        <p className="font-medium text-slate-900 dark:text-slate-100">{row.medicationName}</p>
+                        <p className="font-medium text-foreground">{row.medicationName}</p>
                         {row.genericName && (
-                          <p className="text-xs text-slate-500 mt-0.5">{row.genericName}</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">{row.genericName}</p>
                         )}
                       </td>
                       <td className="hidden px-5 py-3 md:table-cell">
                         {row.category ? (
-                          <span className="inline-flex items-center rounded-md bg-slate-100 dark:bg-slate-800 px-2 py-0.5 text-xs font-medium text-slate-700 dark:text-slate-300">
+                          <span className="inline-flex items-center rounded-md bg-muted px-2 py-0.5 text-xs font-medium text-foreground">
                             {row.category}
                           </span>
-                        ) : <span className="text-slate-400">—</span>}
+                        ) : <span className="text-muted-foreground">—</span>}
                       </td>
                       <td className="px-5 py-3 text-center">
-                        <span className="text-slate-600 dark:text-slate-300 font-mono text-base font-semibold">
+                        <span className="text-foreground font-mono text-base font-semibold">
                           {row.systemCount}
                         </span>
                       </td>
@@ -364,7 +364,7 @@ export default function StockTakePage() {
                 })}
               </tbody>
             </table>
-            <div className="border-t border-slate-100 dark:border-slate-800 px-5 py-2.5 text-xs text-slate-500">
+            <div className="border-t border-border px-5 py-2.5 text-xs text-muted-foreground">
               Showing {displayRows.length} of {rows.length} items
             </div>
           </div>
@@ -373,10 +373,10 @@ export default function StockTakePage() {
 
       {/* Notes + Submit */}
       {rows.length > 0 && !loading && (
-        <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-5 space-y-4">
+        <div className="rounded-xl border border-border bg-white p-5 space-y-4">
           <div className="space-y-1.5">
-            <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
-              Notes <span className="text-slate-400 font-normal">(optional)</span>
+            <label className="text-sm font-medium text-foreground">
+              Notes <span className="text-muted-foreground font-normal">(optional)</span>
             </label>
             <Input
               value={notes}
@@ -385,7 +385,7 @@ export default function StockTakePage() {
             />
           </div>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-sm text-slate-500 dark:text-slate-400">
+            <p className="text-sm text-muted-foreground">
               {discrepancies.length === 0
                 ? 'All counts match system — no adjustments needed.'
                 : `${discrepancies.length} adjustment${discrepancies.length !== 1 ? 's' : ''} will be recorded.`}

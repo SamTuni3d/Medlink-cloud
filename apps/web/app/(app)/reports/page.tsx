@@ -170,8 +170,8 @@ export default function ReportsPage() {
       {/* Header */}
       <div className="flex flex-wrap items-center gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Reports</h1>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">Daily sales summary &amp; performance</p>
+          <h1 className="text-2xl font-bold text-foreground">Reports</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">Daily sales summary &amp; performance</p>
         </div>
         <div className="ml-auto flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={exportCSV} disabled={loading || sales.length === 0}>

@@ -502,9 +502,16 @@ export default function POSPage() {
                     >
                       <Minus className="h-3 w-3" />
                     </button>
-                    <span className="w-6 text-center text-sm font-medium">
-                      {item.quantity}
-                    </span>
+                    <input
+                      type="number"
+                      min="1"
+                      value={item.quantity}
+                      onChange={e => {
+                        const v = parseInt(e.target.value, 10)
+                        if (!isNaN(v) && v >= 1) updateQty(item.medicationId, v)
+                      }}
+                      className="w-10 rounded border border-border bg-background text-center text-sm font-medium py-0.5 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:outline-none focus:ring-1 focus:ring-primary"
+                    />
                     <button
                       onClick={() => updateQty(item.medicationId, item.quantity + 1)}
                       className="flex h-6 w-6 items-center justify-center rounded border hover:bg-accent"

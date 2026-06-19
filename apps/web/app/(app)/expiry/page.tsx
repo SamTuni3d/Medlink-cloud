@@ -22,9 +22,9 @@ interface ExpiryRow extends ExpiringBatch {
 }
 
 const RISK_CONFIG: Record<Risk, { label: string; badge: string; icon: string }> = {
-  critical: { label: 'Critical', badge: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400',    icon: 'text-red-500' },
-  high:     { label: 'High',     badge: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400', icon: 'text-amber-500' },
-  medium:   { label: 'Medium',   badge: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-500', icon: 'text-yellow-500' },
+  critical: { label: 'Critical', badge: 'bg-red-100 text-red-700 ',    icon: 'text-red-500' },
+  high:     { label: 'High',     badge: 'bg-amber-100 text-amber-700 ', icon: 'text-amber-500' },
+  medium:   { label: 'Medium',   badge: 'bg-yellow-100 text-yellow-700 ', icon: 'text-yellow-500' },
 }
 
 function getRisk(days: number): Risk {
@@ -118,11 +118,11 @@ export default function ExpiryPage() {
       {/* Header */}
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
             <Clock className="h-6 w-6 text-amber-500" />
             Expiry Management
           </h1>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
+          <p className="text-sm text-muted-foreground mt-0.5">
             Medications expiring within 90 days — act before stock becomes unsellable.
           </p>
         </div>
@@ -137,13 +137,13 @@ export default function ExpiryPage() {
       {/* Summary cards */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {[
-          { label: 'Critical (≤30d)', value: counts.critical, color: 'text-red-600 dark:text-red-400' },
-          { label: 'High (≤60d)',     value: counts.high,     color: 'text-amber-600 dark:text-amber-400' },
-          { label: 'Medium (≤90d)',   value: counts.medium,   color: 'text-yellow-600 dark:text-yellow-500' },
-          { label: 'Units at Risk',   value: totalAtRisk,     color: rows.length > 0 ? 'text-red-600 dark:text-red-400' : 'text-slate-900 dark:text-slate-100' },
+          { label: 'Critical (≤30d)', value: counts.critical, color: 'text-red-600' },
+          { label: 'High (≤60d)',     value: counts.high,     color: 'text-amber-600' },
+          { label: 'Medium (≤90d)',   value: counts.medium,   color: 'text-yellow-600' },
+          { label: 'Units at Risk',   value: totalAtRisk,     color: rows.length > 0 ? 'text-red-600' : 'text-foreground' },
         ].map(card => (
-          <div key={card.label} className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4">
-            <p className="text-xs text-slate-500 dark:text-slate-400">{card.label}</p>
+          <div key={card.label} className="rounded-xl border border-border bg-white p-4">
+            <p className="text-xs text-muted-foreground">{card.label}</p>
             <p className={`text-2xl font-bold mt-1 ${card.color}`}>{loading ? '—' : card.value}</p>
           </div>
         ))}
@@ -158,7 +158,7 @@ export default function ExpiryPage() {
             className={`rounded-full px-3 py-1 text-xs font-semibold transition-colors ${
               riskFilter === f
                 ? 'bg-primary text-primary-foreground'
-                : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
+                : 'bg-muted text-muted-foreground hover:bg-muted/80'
             }`}
           >
             {f === 'all' ? `All (${rows.length})` : `${RISK_CONFIG[f].label} (${counts[f]})`}
@@ -167,15 +167,15 @@ export default function ExpiryPage() {
       </div>
 
       {/* Table */}
-      <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 overflow-hidden">
+      <div className="rounded-xl border border-border bg-white overflow-hidden">
         {loading ? (
           <div className="p-6 space-y-3">
             {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-16 w-full" />)}
           </div>
         ) : filtered.length === 0 ? (
-          <div className="flex flex-col items-center gap-2 py-16 text-slate-400">
-            <CheckCircle2 className="h-10 w-10 text-emerald-400" />
-            <p className="text-sm font-medium text-emerald-600 dark:text-emerald-400">
+          <div className="flex flex-col items-center gap-2 py-16 text-muted-foreground">
+            <CheckCircle2 className="h-10 w-10 text-primary" />
+            <p className="text-sm font-medium text-primary">
               {rows.length === 0 ? 'No medications expiring within 90 days.' : 'No items in this category.'}
             </p>
           </div>
@@ -183,36 +183,36 @@ export default function ExpiryPage() {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50">
-                  <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Medication</th>
-                  <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Batch</th>
-                  <th className="px-5 py-3 text-center text-xs font-semibold uppercase tracking-wider text-slate-500">Expires</th>
-                  <th className="px-5 py-3 text-center text-xs font-semibold uppercase tracking-wider text-slate-500">Days Left</th>
-                  <th className="px-5 py-3 text-center text-xs font-semibold uppercase tracking-wider text-slate-500">Qty Remaining</th>
-                  <th className="px-5 py-3 text-center text-xs font-semibold uppercase tracking-wider text-slate-500">Risk</th>
-                  <th className="px-5 py-3 text-center text-xs font-semibold uppercase tracking-wider text-slate-500">Action</th>
+                <tr className="border-b border-border bg-muted/30">
+                  <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Medication</th>
+                  <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Batch</th>
+                  <th className="px-5 py-3 text-center text-xs font-semibold uppercase tracking-wider text-muted-foreground">Expires</th>
+                  <th className="px-5 py-3 text-center text-xs font-semibold uppercase tracking-wider text-muted-foreground">Days Left</th>
+                  <th className="px-5 py-3 text-center text-xs font-semibold uppercase tracking-wider text-muted-foreground">Qty Remaining</th>
+                  <th className="px-5 py-3 text-center text-xs font-semibold uppercase tracking-wider text-muted-foreground">Risk</th>
+                  <th className="px-5 py-3 text-center text-xs font-semibold uppercase tracking-wider text-muted-foreground">Action</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+              <tbody className="divide-y divide-border/60">
                 {filtered.map(row => {
                   const cfg = RISK_CONFIG[row.risk]
                   return (
-                    <tr key={row.id} className={row.risk === 'critical' ? 'bg-red-50/40 dark:bg-red-900/10' : ''}>
-                      <td className="px-5 py-4 font-medium text-slate-900 dark:text-slate-100">{row.medication_name}</td>
-                      <td className="px-5 py-4 font-mono text-xs text-slate-600 dark:text-slate-300">{row.batch_number}</td>
-                      <td className="px-5 py-4 text-center text-sm text-slate-600 dark:text-slate-300">
+                    <tr key={row.id} className={row.risk === 'critical' ? 'bg-red-50/40' : ''}>
+                      <td className="px-5 py-4 font-medium text-foreground">{row.medication_name}</td>
+                      <td className="px-5 py-4 font-mono text-xs text-muted-foreground">{row.batch_number}</td>
+                      <td className="px-5 py-4 text-center text-sm text-muted-foreground">
                         {new Date(row.expiry_date!).toLocaleDateString('en-GH', { day: '2-digit', month: 'short', year: 'numeric' })}
                       </td>
                       <td className="px-5 py-4 text-center">
                         <span className={`text-lg font-bold ${
-                          row.days_to_expiry <= 30 ? 'text-red-600 dark:text-red-400' :
-                          row.days_to_expiry <= 60 ? 'text-amber-600 dark:text-amber-400' :
-                          'text-yellow-600 dark:text-yellow-500'
+                          row.days_to_expiry <= 30 ? 'text-red-600' :
+                          row.days_to_expiry <= 60 ? 'text-amber-600' :
+                          'text-yellow-600'
                         }`}>
                           {row.days_to_expiry}
                         </span>
                       </td>
-                      <td className="px-5 py-4 text-center font-semibold text-slate-700 dark:text-slate-300">
+                      <td className="px-5 py-4 text-center font-semibold text-foreground">
                         {row.quantity_remaining}
                       </td>
                       <td className="px-5 py-4 text-center">
@@ -225,7 +225,7 @@ export default function ExpiryPage() {
                         <Button
                           size="sm"
                           variant="outline"
-                          className="text-xs border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-900/20"
+                          className="text-xs border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 "
                           onClick={() => setWriteOffTarget(row)}
                         >
                           <PackageX className="mr-1.5 h-3.5 w-3.5" />
@@ -237,7 +237,7 @@ export default function ExpiryPage() {
                 })}
               </tbody>
             </table>
-            <div className="border-t border-slate-100 dark:border-slate-800 px-5 py-2.5 text-xs text-slate-500">
+            <div className="border-t border-border px-5 py-2.5 text-xs text-muted-foreground">
               {filtered.length} batch{filtered.length !== 1 ? 'es' : ''} at risk
             </div>
           </div>
@@ -248,25 +248,25 @@ export default function ExpiryPage() {
       <Dialog open={!!writeOffTarget} onOpenChange={v => { if (!v) setWriteOffTarget(null) }}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-red-600 dark:text-red-400">
+            <DialogTitle className="flex items-center gap-2 text-red-600">
               <PackageX className="h-5 w-5" />
               Confirm Write-Off
             </DialogTitle>
           </DialogHeader>
           {writeOffTarget && (
             <div className="space-y-3 py-2">
-              <p className="text-sm text-slate-600 dark:text-slate-400">
+              <p className="text-sm text-muted-foreground">
                 This will permanently remove{' '}
-                <span className="font-semibold text-slate-900 dark:text-slate-100">{writeOffTarget.quantity_remaining} units</span>{' '}
-                of <span className="font-semibold text-slate-900 dark:text-slate-100">{writeOffTarget.medication_name}</span>{' '}
+                <span className="font-semibold text-foreground">{writeOffTarget.quantity_remaining} units</span>{' '}
+                of <span className="font-semibold text-foreground">{writeOffTarget.medication_name}</span>{' '}
                 (batch <span className="font-mono">{writeOffTarget.batch_number}</span>) from stock.
               </p>
-              <div className="rounded-lg bg-slate-50 dark:bg-slate-800 p-3 text-xs text-slate-500 space-y-1">
+              <div className="rounded-lg bg-muted/50 p-3 text-xs text-muted-foreground space-y-1">
                 <p>Expiry: <span className="font-medium">{new Date(writeOffTarget.expiry_date!).toLocaleDateString('en-GH', { day: '2-digit', month: 'long', year: 'numeric' })}</span></p>
                 <p>Days remaining: <span className="font-medium text-red-500">{writeOffTarget.days_to_expiry} days</span></p>
                 <p>Units: <span className="font-medium">{writeOffTarget.quantity_remaining}</span></p>
               </div>
-              <p className="text-xs text-slate-400">An <code>expiry_write_off</code> movement will be recorded in the audit log.</p>
+              <p className="text-xs text-muted-foreground">An <code>expiry_write_off</code> movement will be recorded in the audit log.</p>
             </div>
           )}
           <DialogFooter>

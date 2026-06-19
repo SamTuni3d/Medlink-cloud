@@ -108,9 +108,9 @@ interface StatCardProps {
 
 function StatCard({ label, value, icon: Icon, color = 'gray' }: StatCardProps) {
   const colorMap = {
-    emerald: 'bg-emerald-50 text-emerald-600',
+    emerald: 'bg-[hsl(175_35%_91%)] text-[#004741]',
     blue:    'bg-blue-50 text-blue-600',
-    gray:    'bg-slate-50 text-slate-600',
+    gray:    'bg-muted text-muted-foreground',
   }
   return (
     <Card>
@@ -339,8 +339,8 @@ export default function UsersPage() {
                             <Badge variant="outline" className="text-xs">You</Badge>
                           )}
                           {onDutyIds.has(u.id) && (
-                            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700">
-                              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                            <span className="inline-flex items-center gap-1 rounded-full bg-[hsl(175_35%_91%)] px-2 py-0.5 text-xs font-medium text-[#004741]">
+                              <span className="h-1.5 w-1.5 rounded-full bg-[#004741] animate-pulse" />
                               On Duty
                             </span>
                           )}
@@ -418,11 +418,11 @@ export default function UsersPage() {
           ) : (
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {activeSessions.map(s => (
-                <Card key={s.id} className="border-l-4 border-l-emerald-500">
+                <Card key={s.id} className="border-l-4 border-l-[#004741]">
                   <CardContent className="pt-4 pb-3">
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex items-center gap-2.5">
-                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 text-sm font-semibold">
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-semibold" style={{ background: 'hsl(175 35% 91%)', color: '#004741' }}>
                           {initials(s.user_name)}
                         </div>
                         <div>
@@ -430,8 +430,8 @@ export default function UsersPage() {
                           <p className="text-xs text-muted-foreground">{s.user_email}</p>
                         </div>
                       </div>
-                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700 shrink-0">
-                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                      <span className="inline-flex items-center gap-1 rounded-full bg-[hsl(175_35%_91%)] px-2 py-0.5 text-xs font-medium text-[#004741] shrink-0">
+                        <span className="h-1.5 w-1.5 rounded-full bg-[#004741] animate-pulse" />
                         On Duty
                       </span>
                     </div>
@@ -482,7 +482,7 @@ export default function UsersPage() {
                           : `${Math.floor(durationMins / 60)}h ${durationMins % 60}m`
                         return (
                           <div key={s.id} className="flex items-center gap-3 py-2.5">
-                            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-600 text-xs font-semibold">
+                            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground text-xs font-semibold">
                               {initials(s.user_name)}
                             </div>
                             <div className="flex-1 min-w-0">
@@ -491,7 +491,7 @@ export default function UsersPage() {
                                 {fmtDate(s.clocked_in_at)} · {fmtTime(s.clocked_in_at)} – {fmtTime(s.clocked_out_at!)}
                               </p>
                             </div>
-                            <span className="text-xs font-medium text-slate-500 shrink-0">{dur}</span>
+                            <span className="text-xs font-medium text-muted-foreground shrink-0">{dur}</span>
                           </div>
                         )
                       })}
