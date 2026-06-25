@@ -39,7 +39,7 @@ export async function searchLibrary(
     let q = client
       .from('medications_library')
       .select('*')
-      .eq('is_verified', true)
+      .eq('status', 'approved')
       .order('name', { ascending: true })
       .range(offset, offset + limit - 1)
 
@@ -95,7 +95,7 @@ export async function getLibraryCategorySummary(
     const { data, error } = await client
       .from('medications_library')
       .select('category')
-      .eq('is_verified', true)
+      .eq('status', 'approved')
       .not('category', 'is', null)
 
     if (error) return err(toAppError(error))
@@ -133,6 +133,30 @@ export async function getPendingSuggestions(
     if (error) return err(toAppError(error))
 
     const parsed = z.array(LibraryEntrySchema).safeParse(data)
+    if (!parsed.success) return err(toAppError(parsed.error))
+
+    return ok(parsed.data)
+  } catch (e) {
+    return err(toAppError(e))
+  }
+}
+
+export async function searchLibraryByBarcode(
+  client: SupabaseClient,
+  barcode: string
+): Promise<Result<LibraryEntry | null>> {
+  try {
+    const { data, error } = await client
+      .from('medications_library')
+      .select('*')
+      .eq('status', 'approved')
+      .eq('barcode', barcode.trim())
+      .maybeSingle()
+
+    if (error) return err(toAppError(error))
+    if (!data) return ok(null)
+
+    const parsed = LibraryEntrySchema.safeParse(data)
     if (!parsed.success) return err(toAppError(parsed.error))
 
     return ok(parsed.data)

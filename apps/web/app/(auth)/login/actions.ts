@@ -11,7 +11,15 @@ export async function signIn(formData: FormData) {
   const { error } = await supabase.auth.signInWithPassword({ email, password })
 
   if (error) {
-    return { error: error.message }
+    // Normalize Supabase messages — never reveal whether an email exists
+    const msg = error.message.toLowerCase()
+    if (msg.includes('invalid login') || msg.includes('invalid credentials') || msg.includes('email not confirmed')) {
+      return { error: 'Incorrect email or password.' }
+    }
+    if (msg.includes('too many') || msg.includes('rate limit')) {
+      return { error: 'Too many attempts. Please wait a few minutes and try again.' }
+    }
+    return { error: 'Sign in failed. Please check your details and try again.' }
   }
 
   redirect('/dashboard')

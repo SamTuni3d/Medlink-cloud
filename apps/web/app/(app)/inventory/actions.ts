@@ -3,7 +3,7 @@
 import { z } from 'zod'
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
-import { addMedicationWithStock, updateMedication } from '@medlink/data-client'
+import { addMedicationWithStock, updateMedication, searchLibraryByBarcode } from '@medlink/data-client'
 
 export type ActionResult<T = void> =
   | { ok: true; data: T }
@@ -192,6 +192,51 @@ export async function adjustStockAction(
   revalidatePath('/inventory')
   revalidatePath('/pos')
   return { ok: true, data: undefined }
+}
+
+// ── Barcode lookup ────────────────────────────────────────────────────────────
+// Searches medications_master (already imported) then medications_library.
+// Returns where the barcode was found so the UI can open the right modal.
+
+export type BarcodeLookupResult =
+  | { foundIn: 'master'; medicationId: string; name: string }
+  | { foundIn: 'library'; libraryId: string; name: string }
+  | { foundIn: null }
+
+export async function lookupBarcodeAction(
+  barcode: string,
+  organizationId: string
+): Promise<ActionResult<BarcodeLookupResult>> {
+  const parsedBarcode = z.string().min(1).safeParse(barcode.trim())
+  const parsedOrg    = z.string().uuid().safeParse(organizationId)
+  if (!parsedBarcode.success || !parsedOrg.success) {
+    return { ok: false, error: { code: 'VALIDATION_ERROR', message: 'Invalid barcode or organization.' } }
+  }
+
+  const supabase = await createClient()
+
+  // 1. Check if already imported by this org
+  const { data: existing } = await supabase
+    .from('medications_master')
+    .select('id, name')
+    .eq('organization_id', parsedOrg.data)
+    .eq('is_active', true)
+    .eq('barcode', parsedBarcode.data)
+    .maybeSingle()
+
+  if (existing) {
+    return { ok: true, data: { foundIn: 'master', medicationId: existing.id as string, name: existing.name as string } }
+  }
+
+  // 2. Check global library
+  const libResult = await searchLibraryByBarcode(supabase, parsedBarcode.data)
+  if (!libResult.ok) return { ok: false, error: libResult.error }
+
+  if (libResult.data) {
+    return { ok: true, data: { foundIn: 'library', libraryId: libResult.data.id, name: libResult.data.name } }
+  }
+
+  return { ok: true, data: { foundIn: null } }
 }
 
 // ── Deactivate medication (soft delete — hides from inventory + POS) ──────────

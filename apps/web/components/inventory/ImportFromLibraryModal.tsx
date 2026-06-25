@@ -33,6 +33,8 @@ interface ImportFromLibraryModalProps {
   branchId: string
   userId: string
   currencyCode: string
+  /** When set, the modal opens with this library entry pre-selected (from barcode scan) */
+  preselectId?: string | null
 }
 
 interface SelectedItem {
@@ -47,6 +49,7 @@ type Step = 'browse' | 'prices'
 export default function ImportFromLibraryModal({
   open, onClose, onImported,
   organizationId, branchId, userId, currencyCode,
+  preselectId,
 }: ImportFromLibraryModalProps) {
   const [step, setStep]             = useState<Step>('browse')
   const [query, setQuery]           = useState('')
@@ -86,6 +89,24 @@ export default function ImportFromLibraryModal({
     fetchCategories()
     fetchEntries('', '', 0)
   }, [open, fetchCategories, fetchEntries])
+
+  // When opened from a barcode scan, auto-select the matching entry
+  useEffect(() => {
+    if (!open || !preselectId) return
+    const supabase = createClient()
+    void supabase
+      .from('medications_library')
+      .select('*')
+      .eq('id', preselectId)
+      .eq('status', 'approved')
+      .maybeSingle()
+      .then(({ data }) => {
+        if (!data) return
+        const entry = { ...(data as LibraryEntryWithStatus), already_imported: false }
+        setSelected([{ entry, sellingPrice: '', reorderPoint: '10', openingStock: '0' }])
+        setStep('prices')
+      })
+  }, [open, preselectId])
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current)

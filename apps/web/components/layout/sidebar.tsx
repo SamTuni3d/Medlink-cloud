@@ -21,84 +21,102 @@ interface NavItem {
   roles: RoleName[]
 }
 
-const NAV_ITEMS: NavItem[] = [
+interface NavSection {
+  heading?: string
+  items: NavItem[]
+}
+
+const NAV_SECTIONS: NavSection[] = [
   {
-    href: '/dashboard',
-    label: 'Dashboard',
-    icon: LayoutDashboard,
-    roles: ['super_admin','org_admin','branch_manager','pharmacist','cashier','inventory_manager','auditor'],
+    items: [
+      {
+        href: '/dashboard',
+        label: 'Dashboard',
+        icon: LayoutDashboard,
+        roles: ['super_admin','org_admin','branch_manager','pharmacist','cashier','inventory_manager','auditor'],
+      },
+      {
+        href: '/pos',
+        label: 'Point of Sale',
+        icon: Tablet,
+        roles: ['super_admin','org_admin','branch_manager','pharmacist','cashier'],
+      },
+    ],
   },
   {
-    href: '/pos',
-    label: 'Point of Sale',
-    icon: Tablet,
-    roles: ['super_admin','org_admin','branch_manager','pharmacist','cashier'],
+    heading: 'Inventory',
+    items: [
+      {
+        href: '/inventory',
+        label: 'Stock',
+        icon: Package,
+        roles: ['super_admin','org_admin','branch_manager','pharmacist','inventory_manager','auditor'],
+      },
+      {
+        href: '/procurement',
+        label: 'Procurement',
+        icon: Truck,
+        roles: ['super_admin','org_admin','branch_manager','inventory_manager'],
+      },
+      {
+        href: '/stock-take',
+        label: 'Stock Take',
+        icon: ClipboardCheck,
+        roles: ['super_admin','org_admin','branch_manager','inventory_manager'],
+      },
+      {
+        href: '/expiry',
+        label: 'Expiry',
+        icon: Clock,
+        roles: ['super_admin','org_admin','branch_manager','inventory_manager','pharmacist'],
+      },
+    ],
   },
   {
-    href: '/inventory',
-    label: 'Inventory',
-    icon: Package,
-    roles: ['super_admin','org_admin','branch_manager','pharmacist','inventory_manager','auditor'],
+    heading: 'Records',
+    items: [
+      {
+        href: '/sales',
+        label: 'Sales',
+        icon: ShoppingCart,
+        roles: ['super_admin','org_admin','branch_manager','pharmacist','cashier','auditor'],
+      },
+      {
+        href: '/prescriptions',
+        label: 'Prescriptions',
+        icon: FileText,
+        roles: ['super_admin','org_admin','branch_manager','pharmacist'],
+      },
+      {
+        href: '/reports',
+        label: 'Reports',
+        icon: BarChart2,
+        roles: ['super_admin','org_admin','branch_manager','inventory_manager','auditor'],
+      },
+    ],
   },
   {
-    href: '/prescriptions',
-    label: 'Prescriptions',
-    icon: FileText,
-    roles: ['super_admin','org_admin','branch_manager','pharmacist'],
-  },
-  {
-    href: '/sales',
-    label: 'Sales',
-    icon: ShoppingCart,
-    roles: ['super_admin','org_admin','branch_manager','pharmacist','cashier','auditor'],
-  },
-  {
-    href: '/procurement',
-    label: 'Procurement',
-    icon: Truck,
-    roles: ['super_admin','org_admin','branch_manager','inventory_manager'],
-  },
-  {
-    href: '/expiry',
-    label: 'Expiry',
-    icon: Clock,
-    roles: ['super_admin','org_admin','branch_manager','inventory_manager','pharmacist'],
-  },
-  {
-    href: '/stock-take',
-    label: 'Stock Take',
-    icon: ClipboardCheck,
-    roles: ['super_admin','org_admin','branch_manager','inventory_manager'],
-  },
-  {
-    href: '/reports',
-    label: 'Reports',
-    icon: BarChart2,
-    roles: ['super_admin','org_admin','branch_manager','inventory_manager','auditor'],
-  },
-  {
-    href: '/notifications',
-    label: 'Notifications',
-    icon: Bell,
-    roles: ['super_admin','org_admin','branch_manager','pharmacist','inventory_manager','auditor'],
-  },
-  {
-    href: '/users',
-    label: 'Users',
-    icon: Users,
-    roles: ['super_admin','org_admin','branch_manager'],
-  },
-  {
-    href: '/settings',
-    label: 'Settings',
-    icon: Settings,
-    roles: ['super_admin','org_admin'],
-  },
-  {
-    href: '/admin/library',
-    label: 'Drug Library',
-    icon: BookOpen,
-    roles: ['super_admin'],
+    heading: 'Admin',
+    items: [
+      {
+        href: '/notifications',
+        label: 'Notifications',
+        icon: Bell,
+        roles: ['super_admin','org_admin','branch_manager','pharmacist','inventory_manager','auditor'],
+      },
+      {
+        href: '/users',
+        label: 'Users',
+        icon: Users,
+        roles: ['super_admin','org_admin','branch_manager'],
+      },
+      {
+        href: '/settings',
+        label: 'Settings',
+        icon: Settings,
+        roles: ['super_admin','org_admin'],
+      },
+    ],
   },
 ]
 
@@ -110,36 +128,47 @@ export function SidebarNav({ onNavigate }: SidebarNavProps) {
   const pathname = usePathname()
   const { primaryRole } = useAuth()
 
-  const visible = NAV_ITEMS.filter(
-    item => !primaryRole || item.roles.includes(primaryRole)
-  )
-
   return (
-    <nav className="flex flex-col gap-0.5 px-3">
-      {visible.map(({ href, label, icon: Icon }) => {
-        const active = pathname === href || pathname.startsWith(href + '/')
+    <nav className="flex flex-col gap-4 px-3">
+      {NAV_SECTIONS.map((section, si) => {
+        const visible = section.items.filter(
+          item => !primaryRole || item.roles.includes(primaryRole)
+        )
+        if (visible.length === 0) return null
         return (
-          <Link
-            key={href}
-            href={href}
-            onClick={onNavigate}
-            className={cn(
-              'nav-active-item group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all',
-              active
-                ? 'bg-[#004741] text-white shadow-md shadow-[#004741]/40'
-                : 'text-white/50 hover:bg-white/8 hover:text-white/90'
+          <div key={si} className="flex flex-col gap-0.5">
+            {section.heading && (
+              <p
+                className="px-3 pb-1 pt-0.5 text-[10px] font-semibold uppercase tracking-widest"
+                style={{ color: '#C4A44C', opacity: 0.4 }}
+              >
+                {section.heading}
+              </p>
             )}
-            style={!active ? {} : undefined}
-          >
-            <Icon className={cn(
-              'h-4 w-4 shrink-0 transition-colors',
-              active
-                ? 'text-[#C4A44C]'
-                : 'text-white/35 group-hover:text-white/70',
-            )} />
-            <span className="flex-1 tracking-wide">{label}</span>
-            {active && <ChevronRight className="h-3 w-3 text-[#C4A44C]/60" />}
-          </Link>
+            {visible.map(({ href, label, icon: Icon }) => {
+              const active = pathname === href || pathname.startsWith(href + '/')
+              return (
+                <Link
+                  key={href}
+                  href={href}
+                  onClick={onNavigate}
+                  className={cn(
+                    'nav-active-item group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all',
+                    active
+                      ? 'bg-[#004741] text-white shadow-md shadow-[#004741]/40'
+                      : 'text-white/50 hover:bg-white/8 hover:text-white/90'
+                  )}
+                >
+                  <Icon className={cn(
+                    'h-4 w-4 shrink-0 transition-colors',
+                    active ? 'text-[#C4A44C]' : 'text-white/35 group-hover:text-white/70',
+                  )} />
+                  <span className="flex-1 tracking-wide">{label}</span>
+                  {active && <ChevronRight className="h-3 w-3 text-[#C4A44C]/60" />}
+                </Link>
+              )
+            })}
+          </div>
         )
       })}
     </nav>
@@ -203,12 +232,6 @@ export function Sidebar() {
 
       {/* Nav scroll area */}
       <div className="flex-1 overflow-y-auto py-4">
-        <p
-          className="px-5 pb-2 text-[10px] font-semibold uppercase tracking-widest"
-          style={{ color: '#C4A44C', opacity: 0.45 }}
-        >
-          Menu
-        </p>
         <SidebarNav />
       </div>
 

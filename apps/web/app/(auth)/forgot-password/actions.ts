@@ -10,8 +10,9 @@ export async function requestPasswordReset(formData: FormData) {
   const origin = headersList.get('origin') ?? ''
 
   const supabase = await createClient()
+  // PKCE flow: email link → /api/auth/callback (exchanges code for session) → /reset-password
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: `${origin}/reset-password`,
+    redirectTo: `${origin}/api/auth/callback?next=/reset-password`,
   })
 
   if (error) {

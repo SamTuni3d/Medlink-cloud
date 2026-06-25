@@ -15,7 +15,6 @@ interface AuthState {
   user: User | null
   session: Session | null
   loading: boolean
-  /** Role with highest privilege the user holds — null while loading */
   primaryRole: RoleName | null
   organizationId: string | null
 }
@@ -38,6 +37,62 @@ const ROLE_PRIORITY: RoleName[] = [
   'auditor',
 ]
 
+async function resolveOrgId(
+  supabase: ReturnType<typeof createClient>,
+  session: Session | null
+): Promise<string | null> {
+  // Fast path: org_id is already baked into the JWT metadata
+  const metaOrgId = session?.user?.user_metadata?.organization_id as string | undefined
+  if (metaOrgId) return metaOrgId
+
+  // Fallback: metadata missing (old account / registration glitch) — query the DB
+  const uid = session?.user?.id
+  if (!uid) return null
+
+  const { data } = await supabase
+    .from('users')
+    .select('organization_id')
+    .eq('id', uid)
+    .single()
+
+  const orgId = (data as { organization_id: string | null } | null)?.organization_id ?? null
+
+  // If found, also patch user_metadata so next load is instant
+  if (orgId) {
+    void supabase.auth.updateUser({
+      data: {
+        ...session?.user?.user_metadata,
+        organization_id: orgId,
+      },
+    })
+  }
+
+  return orgId
+}
+
+async function resolveRoles(
+  supabase: ReturnType<typeof createClient>,
+  user: User | null
+): Promise<RoleName[]> {
+  // Fast path: roles are in metadata
+  const metaRoles = user?.user_metadata?.roles as RoleName[] | undefined
+  if (metaRoles?.length) return metaRoles
+
+  if (!user?.id) return []
+
+  // Fallback: query user_roles → roles join
+  const { data } = await supabase
+    .from('user_roles')
+    .select('roles(name)')
+    .eq('user_id', user.id)
+
+  const names = (data as { roles: { name: string } | null }[] | null)
+    ?.map(r => r.roles?.name)
+    .filter(Boolean) as RoleName[] | undefined
+
+  return names ?? []
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AuthState>({
     user: null,
@@ -50,45 +105,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const supabase = createClient()
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setState(prev => ({
-        ...prev,
+    async function applySession(session: Session | null) {
+      const [orgId, roles] = await Promise.all([
+        resolveOrgId(supabase, session),
+        resolveRoles(supabase, session?.user ?? null),
+      ])
+
+      const primary = ROLE_PRIORITY.find(r => roles.includes(r)) ?? roles[0] ?? null
+
+      setState({
         user: session?.user ?? null,
         session,
         loading: false,
-        organizationId:
-          (session?.user?.user_metadata?.organization_id as string) ?? null,
-      }))
+        organizationId: orgId,
+        primaryRole: primary,
+      })
+    }
+
+    // Initial session load
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      void applySession(session)
     })
 
-    const { data: listener } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        setState(prev => ({
-          ...prev,
-          user: session?.user ?? null,
-          session,
-          loading: false,
-          organizationId:
-            (session?.user?.user_metadata?.organization_id as string) ?? null,
-        }))
-      }
-    )
+    // Live auth state changes (sign-in, sign-out, token refresh)
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      void applySession(session)
+    })
 
     return () => listener.subscription.unsubscribe()
   }, [])
-
-  // Derive primaryRole from user_metadata roles array (set during registration)
-  useEffect(() => {
-    if (!state.user) {
-      setState(prev => ({ ...prev, primaryRole: null }))
-      return
-    }
-    const roles: RoleName[] =
-      (state.user.user_metadata?.roles as RoleName[]) ?? []
-    const primary =
-      ROLE_PRIORITY.find(r => roles.includes(r)) ?? roles[0] ?? null
-    setState(prev => ({ ...prev, primaryRole: primary }))
-  }, [state.user])
 
   return <AuthContext.Provider value={state}>{children}</AuthContext.Provider>
 }

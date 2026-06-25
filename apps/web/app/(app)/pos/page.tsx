@@ -11,6 +11,7 @@ import {
   CloudOff,
   Loader2,
   ScanBarcode,
+  Printer,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -134,55 +135,155 @@ function PaymentDialog({ total, currencyCode, onCancel, onConfirm }: PaymentDial
 
 // ─── Receipt ──────────────────────────────────────────────────────────────────
 
+interface ReceiptItem {
+  name: string
+  quantity: number
+  unitPrice: number
+  currencyCode: string
+}
+
 interface ReceiptProps {
   saleNumber: string
-  items: { name: string; quantity: number; unitPrice: number; currencyCode: string }[]
+  branchName: string
+  branchAddress: string | null
+  cashierName: string
+  saleTime: string
+  items: ReceiptItem[]
+  subtotal: number
   total: number
   paymentMethod: string
+  amountTendered: number | null
+  change: number | null
   currencyCode: string
   onClose: () => void
 }
 
-function Receipt({ saleNumber, items, total, paymentMethod, currencyCode, onClose }: ReceiptProps) {
+function Receipt({
+  saleNumber, branchName, branchAddress, cashierName, saleTime,
+  items, subtotal, total, paymentMethod, amountTendered, change,
+  currencyCode, onClose,
+}: ReceiptProps) {
+  const date = new Date(saleTime)
+  const dateStr = date.toLocaleDateString('en-GH', { day: '2-digit', month: 'short', year: 'numeric' })
+  const timeStr = date.toLocaleTimeString('en-GH', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+  const methodLabel = paymentMethod.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+
+  function handlePrint() {
+    window.print()
+  }
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="w-full max-w-xs rounded-xl border bg-card p-6 shadow-xl">
-        <div className="mb-4 text-center">
-          <p className="text-xs text-muted-foreground">MedLink Cloud</p>
-          <p className="mt-1 font-mono text-sm font-bold">{saleNumber}</p>
-          <p className="text-xs text-muted-foreground">
-            {new Date().toLocaleString()}
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 print:bg-transparent print:p-0 print:inset-auto print:fixed-none">
+      <div
+        id="receipt-print"
+        className="w-full max-w-xs rounded-xl border bg-white shadow-2xl overflow-hidden print:shadow-none print:border-none print:rounded-none print:max-w-full"
+      >
+        {/* Header */}
+        <div className="px-5 pt-5 pb-3 text-center" style={{ background: '#004741' }}>
+          <p className="text-xs font-semibold tracking-widest uppercase" style={{ color: '#C4A44C' }}>
+            MedLink Pharmacy
           </p>
+          <p className="mt-0.5 text-base font-bold text-white">{branchName}</p>
+          {branchAddress && (
+            <p className="mt-0.5 text-[11px] text-white/70">{branchAddress}</p>
+          )}
         </div>
 
-        <Separator className="my-3" />
-
-        <div className="space-y-1">
-          {items.map((item, i) => (
-            <div key={i} className="flex justify-between text-sm">
-              <span className="truncate pr-2">
-                {item.name} × {item.quantity}
-              </span>
-              <span className="shrink-0 font-mono">
-                {formatCurrency(item.unitPrice * item.quantity, item.currencyCode)}
-              </span>
+        <div className="px-5 py-3">
+          {/* Receipt meta */}
+          <div className="flex items-start justify-between text-[11px] text-muted-foreground">
+            <div>
+              <p><span className="font-medium text-foreground">Date:</span> {dateStr}</p>
+              <p><span className="font-medium text-foreground">Time:</span> {timeStr}</p>
+              <p><span className="font-medium text-foreground">Cashier:</span> {cashierName}</p>
             </div>
-          ))}
+            <div className="text-right">
+              <p className="font-mono font-bold text-xs text-foreground">{saleNumber}</p>
+              <p className="mt-0.5 text-[10px] uppercase tracking-wide">Official Receipt</p>
+            </div>
+          </div>
+
+          <div className="my-3 border-t border-dashed border-border" />
+
+          {/* Column headers */}
+          <div className="flex justify-between text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
+            <span>Item</span>
+            <span className="shrink-0">Qty × Price</span>
+            <span className="shrink-0 w-20 text-right">Amount</span>
+          </div>
+
+          {/* Line items */}
+          <div className="space-y-1.5">
+            {items.map((item, i) => (
+              <div key={i} className="flex items-start justify-between gap-2 text-sm">
+                <span className="flex-1 leading-tight">{item.name}</span>
+                <span className="shrink-0 text-[11px] text-muted-foreground font-mono whitespace-nowrap">
+                  {item.quantity} × {formatCurrency(item.unitPrice, item.currencyCode)}
+                </span>
+                <span className="shrink-0 w-20 text-right font-mono font-medium">
+                  {formatCurrency(item.unitPrice * item.quantity, item.currencyCode)}
+                </span>
+              </div>
+            ))}
+          </div>
+
+          <div className="my-3 border-t border-dashed border-border" />
+
+          {/* Totals */}
+          <div className="space-y-1 text-sm">
+            <div className="flex justify-between text-muted-foreground">
+              <span>Subtotal</span>
+              <span className="font-mono">{formatCurrency(subtotal, currencyCode)}</span>
+            </div>
+            <div className="flex justify-between font-bold text-base">
+              <span>TOTAL</span>
+              <span className="font-mono">{formatCurrency(total, currencyCode)}</span>
+            </div>
+          </div>
+
+          <div className="my-3 border-t border-dashed border-border" />
+
+          {/* Payment */}
+          <div className="space-y-1 text-sm">
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Payment Method</span>
+              <span className="font-medium capitalize">{methodLabel}</span>
+            </div>
+            {amountTendered !== null && (
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Amount Tendered</span>
+                <span className="font-mono">{formatCurrency(amountTendered, currencyCode)}</span>
+              </div>
+            )}
+            {change !== null && change >= 0 && (
+              <div className="flex justify-between font-semibold" style={{ color: '#004741' }}>
+                <span>Change</span>
+                <span className="font-mono">{formatCurrency(change, currencyCode)}</span>
+              </div>
+            )}
+          </div>
+
+          <div className="my-3 border-t border-dashed border-border" />
+
+          {/* Footer */}
+          <div className="text-center text-[10px] text-muted-foreground space-y-0.5">
+            <p className="font-semibold text-foreground text-xs">Thank you for your purchase!</p>
+            <p>Goods sold are not returnable unless defective.</p>
+            <p>Keep this receipt as proof of purchase.</p>
+            <p className="mt-1 font-mono text-[9px] opacity-60">Powered by MedLink Cloud</p>
+          </div>
+
+          {/* Actions — hidden when printing */}
+          <div className="mt-4 flex gap-2 print:hidden">
+            <Button variant="outline" size="sm" className="flex-1 gap-1.5" onClick={handlePrint}>
+              <Printer className="h-4 w-4" />
+              Print
+            </Button>
+            <Button size="sm" className="flex-1" onClick={onClose}>
+              New Sale
+            </Button>
+          </div>
         </div>
-
-        <Separator className="my-3" />
-
-        <div className="flex justify-between text-sm font-bold">
-          <span>Total</span>
-          <span className="font-mono">{formatCurrency(total, currencyCode)}</span>
-        </div>
-        <p className="mt-1 text-xs text-muted-foreground capitalize">
-          Paid via {paymentMethod.replace('_', ' ')}
-        </p>
-
-        <Button className="mt-4 w-full" onClick={onClose}>
-          New Sale
-        </Button>
       </div>
     </div>
   )
@@ -238,9 +339,16 @@ export default function POSPage() {
   const [showPayment, setShowPayment] = useState(false)
   const [receipt, setReceipt] = useState<null | {
     saleNumber: string
-    items: { name: string; quantity: number; unitPrice: number; currencyCode: string }[]
+    branchName: string
+    branchAddress: string | null
+    cashierName: string
+    saleTime: string
+    items: ReceiptItem[]
+    subtotal: number
     total: number
     paymentMethod: string
+    amountTendered: number | null
+    change: number | null
     currencyCode: string
   }>(null)
   const [isCompleting, setIsCompleting] = useState(false)
@@ -344,18 +452,29 @@ export default function POSPage() {
           currencyCode: items[0]?.currencyCode ?? 'GHS',
         })
 
+        const cashChange = method === 'cash' && tendered !== null
+          ? Math.max(0, tendered - totals.total)
+          : null
+
         // Show receipt, then clear cart
         setReceipt({
           saleNumber,
+          branchName:     activeBranch.name,
+          branchAddress:  activeBranch.address ?? null,
+          cashierName:    (user.user_metadata?.full_name as string | undefined) ?? user.email ?? 'Cashier',
+          saleTime:       new Date().toISOString(),
           items: items.map(i => ({
-            name: i.medicationName,
-            quantity: i.quantity,
-            unitPrice: i.unitPrice,
+            name:        i.medicationName,
+            quantity:    i.quantity,
+            unitPrice:   i.unitPrice,
             currencyCode: i.currencyCode,
           })),
-          total: totals.total,
-          paymentMethod: method,
-          currencyCode: items[0]?.currencyCode ?? 'GHS',
+          subtotal:       totals.subtotal,
+          total:          totals.total,
+          paymentMethod:  method,
+          amountTendered: tendered,
+          change:         cashChange,
+          currencyCode:   items[0]?.currencyCode ?? 'GHS',
         })
         clearCart()
       } finally {
@@ -581,9 +700,16 @@ export default function POSPage() {
       {receipt && (
         <Receipt
           saleNumber={receipt.saleNumber}
+          branchName={receipt.branchName}
+          branchAddress={receipt.branchAddress}
+          cashierName={receipt.cashierName}
+          saleTime={receipt.saleTime}
           items={receipt.items}
+          subtotal={receipt.subtotal}
           total={receipt.total}
           paymentMethod={receipt.paymentMethod}
+          amountTendered={receipt.amountTendered}
+          change={receipt.change}
           currencyCode={receipt.currencyCode}
           onClose={handleCloseReceipt}
         />

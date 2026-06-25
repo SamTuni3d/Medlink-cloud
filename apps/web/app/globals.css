@@ -302,3 +302,22 @@ button:active:not(:disabled),
     min-width: 36px;
   }
 }
+
+/* ── Print: show only the receipt ───────────────────── */
+@media print {
+  body > * { display: none !important; }
+  #receipt-print {
+    display: block !important;
+    position: fixed !important;
+    inset: 0 !important;
+    width: 80mm !important;
+    max-width: 80mm !important;
+    margin: 0 auto !important;
+    padding: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    font-size: 11px !important;
+  }
+  #receipt-print * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}

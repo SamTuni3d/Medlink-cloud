@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import {
   Package, Search, RefreshCw, AlertTriangle, Clock,
-  PackagePlus, PackageSearch, X, Tag, BookOpen, Pencil, Trash2,
+  PackagePlus, PackageSearch, X, Tag, BookOpen, Pencil, Trash2, Scan,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -33,6 +33,8 @@ import {
 import { seedMedicationsCache, seedInventoryCache } from '@/lib/sync/syncQueue'
 import { db } from '@/lib/dexie/db'
 import ImportFromLibraryModal from '@/components/inventory/ImportFromLibraryModal'
+import BarcodeScanModal from '@/components/inventory/BarcodeScanModal'
+import type { BarcodeLookupResult } from './actions'
 
 type StockFilter = 'all' | 'in_stock' | 'low_stock' | 'out_of_stock' | 'expiring'
 
@@ -105,6 +107,7 @@ function AddMedicationModal({
   branchId,
   userId,
   currency,
+  initialBarcode,
 }: {
   open: boolean
   onClose: () => void
@@ -113,8 +116,16 @@ function AddMedicationModal({
   branchId: string
   userId: string
   currency: string
+  initialBarcode?: string
 }) {
-  const [form, setForm] = useState(EMPTY_FORM)
+  const [form, setForm] = useState(() => ({
+    ...EMPTY_FORM,
+    barcode: initialBarcode ?? '',
+  }))
+
+  useEffect(() => {
+    if (open) setForm({ ...EMPTY_FORM, barcode: initialBarcode ?? '' })
+  }, [open, initialBarcode])
   const [saving, setSaving] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
   const { toast } = useToast()
@@ -577,8 +588,13 @@ export default function InventoryPage() {
   const [stockFilter, setStockFilter] = useState<StockFilter>('all')
   const [showAddModal, setShowAddModal]         = useState(false)
   const [showLibraryModal, setShowLibraryModal] = useState(false)
+  const [showScanModal, setShowScanModal]       = useState(false)
   const [editMed, setEditMed]     = useState<InventoryWithBatches | null>(null)
   const [deactivateMed, setDeactivateMed] = useState<InventoryWithBatches | null>(null)
+  // When a barcode scan finds a library entry, pre-open ImportFromLibraryModal at that entry
+  const [preselectLibraryId, setPreselectLibraryId] = useState<string | null>(null)
+  // When a scan finds nothing, pre-fill the Add modal with the barcode
+  const [prescannedBarcode, setPrescannedBarcode] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     if (!activeBranch || !organizationId) { setLoading(false); return }
@@ -624,6 +640,22 @@ export default function InventoryPage() {
   ).length
   const currency = rows[0]?.currency_code ?? 'GHS'
 
+  function handleBarcodeResult(barcode: string, result: BarcodeLookupResult) {
+    if (result.foundIn === 'master') {
+      // Already in this org's inventory — find and open edit modal
+      const found = rows.find(r => r.medication_id === result.medicationId)
+      if (found) setEditMed(found)
+    } else if (result.foundIn === 'library') {
+      // In global library — open import modal pre-selected at this entry
+      setPreselectLibraryId(result.libraryId)
+      setShowLibraryModal(true)
+    } else {
+      // Not found anywhere — open Add modal with barcode pre-filled
+      setPrescannedBarcode(barcode)
+      setShowAddModal(true)
+    }
+  }
+
   return (
     <div className="space-y-6">
 
@@ -637,6 +669,10 @@ export default function InventoryPage() {
           <Button variant="outline" size="sm" onClick={() => void load()} disabled={loading}>
             <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
             Refresh
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => setShowScanModal(true)} disabled={!activeBranch}>
+            <Scan className="mr-2 h-4 w-4" />
+            Scan
           </Button>
           <Button variant="outline" size="sm" onClick={() => setShowLibraryModal(true)} disabled={!activeBranch}>
             <BookOpen className="mr-2 h-4 w-4" />
@@ -653,7 +689,20 @@ export default function InventoryPage() {
         <p className="rounded-md bg-destructive/10 px-4 py-3 text-sm text-destructive">{error}</p>
       )}
       {!activeBranch && !loading && (
-        <p className="text-sm text-muted-foreground">Select a branch to view inventory.</p>
+        <div className="rounded-xl border border-dashed border-border py-16 text-center">
+          <Package className="mx-auto h-10 w-10 text-muted-foreground/30 mb-3" />
+          <p className="font-medium text-muted-foreground">No branch selected</p>
+          <p className="text-sm text-muted-foreground mt-1 mb-4">
+            Create a branch first, then come back to add medications.
+          </p>
+          <a
+            href="/settings"
+            className="inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium text-white"
+            style={{ background: '#004741' }}
+          >
+            Go to Settings → Branches
+          </a>
+        </div>
       )}
 
       {/* Summary cards */}
@@ -714,10 +763,57 @@ export default function InventoryPage() {
           <div className="p-6 space-y-3">
             {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-16 w-full" />)}
           </div>
+        ) : rows.length === 0 ? (
+          /* ── True empty inventory — show the 3 ways to add ── */
+          <div className="p-8 space-y-6">
+            <div className="text-center">
+              <Package className="mx-auto h-12 w-12 text-muted-foreground/25 mb-3" />
+              <p className="font-semibold text-foreground">Your inventory is empty</p>
+              <p className="text-sm text-muted-foreground mt-1">Add medications using one of the options below</p>
+            </div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+              <button
+                onClick={() => setShowLibraryModal(true)}
+                className="flex flex-col items-center gap-3 rounded-xl border-2 border-dashed border-border p-6 text-center transition-colors hover:border-primary hover:bg-primary/5"
+              >
+                <div className="rounded-xl bg-primary/10 p-3">
+                  <BookOpen className="h-7 w-7 text-primary" />
+                </div>
+                <div>
+                  <p className="font-semibold text-sm text-foreground">Browse Library</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Import from 260+ medications</p>
+                </div>
+              </button>
+              <button
+                onClick={() => setShowAddModal(true)}
+                className="flex flex-col items-center gap-3 rounded-xl border-2 border-dashed border-border p-6 text-center transition-colors hover:border-primary hover:bg-primary/5"
+              >
+                <div className="rounded-xl bg-primary/10 p-3">
+                  <PackagePlus className="h-7 w-7 text-primary" />
+                </div>
+                <div>
+                  <p className="font-semibold text-sm text-foreground">Add Manually</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Enter medication details</p>
+                </div>
+              </button>
+              <button
+                onClick={() => setShowScanModal(true)}
+                className="flex flex-col items-center gap-3 rounded-xl border-2 border-dashed border-border p-6 text-center transition-colors hover:border-primary hover:bg-primary/5"
+              >
+                <div className="rounded-xl bg-primary/10 p-3">
+                  <Scan className="h-7 w-7 text-primary" />
+                </div>
+                <div>
+                  <p className="font-semibold text-sm text-foreground">Scan Barcode</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">USB scanner or camera</p>
+                </div>
+              </button>
+            </div>
+          </div>
         ) : filtered.length === 0 ? (
           <div className="flex flex-col items-center gap-2 py-16 text-muted-foreground">
             <PackageSearch className="h-10 w-10" />
-            <p className="text-sm font-medium">No items found</p>
+            <p className="text-sm font-medium">No items match your search</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -834,11 +930,22 @@ export default function InventoryPage() {
         )}
       </div>
 
+      {/* Barcode Scan Modal */}
+      {activeBranch && organizationId && (
+        <BarcodeScanModal
+          open={showScanModal}
+          onClose={() => setShowScanModal(false)}
+          organizationId={organizationId}
+          onResult={handleBarcodeResult}
+        />
+      )}
+
       {/* Import from Library Modal */}
       {activeBranch && organizationId && user && (
         <ImportFromLibraryModal
           open={showLibraryModal}
-          onClose={() => setShowLibraryModal(false)}
+          onClose={() => { setShowLibraryModal(false); setPreselectLibraryId(null) }}
+          preselectId={preselectLibraryId}
           onImported={() => {
             void load()
             setShowLibraryModal(false)
@@ -860,12 +967,13 @@ export default function InventoryPage() {
       {activeBranch && organizationId && user && (
         <AddMedicationModal
           open={showAddModal}
-          onClose={() => setShowAddModal(false)}
+          onClose={() => { setShowAddModal(false); setPrescannedBarcode(null) }}
           onAdded={() => void load()}
           organizationId={organizationId}
           branchId={activeBranch.id}
           userId={user.id}
           currency={currency}
+          initialBarcode={prescannedBarcode ?? undefined}
         />
       )}
 

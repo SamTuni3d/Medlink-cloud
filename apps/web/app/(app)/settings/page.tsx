@@ -10,15 +10,14 @@ import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useAuth } from '@/providers/auth-provider'
 import { createClient } from '@/lib/supabase/client'
-import {
-  getOrganization,
-  updateOrganization,
-  getBranches,
-  createBranch,
-  updateBranch,
-  updateUser,
-} from '@medlink/data-client'
+import { getOrganization, getBranches } from '@medlink/data-client'
 import type { Organization, Branch } from '@medlink/data-client'
+import {
+  createBranchAction,
+  updateBranchAction,
+  updateOrganizationAction,
+  updateUserProfileAction,
+} from './actions'
 
 type Tab = 'organization' | 'branches' | 'profile'
 
@@ -75,18 +74,21 @@ export default function SettingsPage() {
 
   function flash(type: 'ok' | 'err', text: string) {
     setMessage({ type, text })
-    setTimeout(() => setMessage(null), 3000)
+    if (type === 'ok') setTimeout(() => setMessage(null), 3000)
+    // errors stay until the user acts again
   }
 
   async function saveOrg() {
     if (!organizationId) return
     setSaving(true)
-    const result = await updateOrganization(createClient(), organizationId, {
+    setMessage(null)
+    const result = await updateOrganizationAction({
+      organizationId,
       name: orgName,
       city: orgCity || null,
       registration_number: orgReg || null,
     })
-    if (result.ok) { setOrg(result.data); flash('ok', 'Organization saved.') }
+    if (result.ok) flash('ok', 'Organization saved.')
     else flash('err', result.error.message)
     setSaving(false)
   }
@@ -94,9 +96,11 @@ export default function SettingsPage() {
   async function saveProfile() {
     if (!user) return
     setSaving(true)
-    const result = await updateUser(createClient(), user.id, {
-      full_name: fullName,
-      phone: phone || null,
+    setMessage(null)
+    const result = await updateUserProfileAction({
+      userId:   user.id,
+      fullName: fullName,
+      phone:    phone || null,
     })
     if (result.ok) flash('ok', 'Profile saved.')
     else flash('err', result.error.message)
@@ -106,13 +110,14 @@ export default function SettingsPage() {
   async function addBranch() {
     if (!organizationId || !newBranchName.trim()) return
     setAddingBranch(true)
-    const result = await createBranch(createClient(), {
-      organization_id: organizationId,
-      name: newBranchName.trim(),
+    setMessage(null)
+    const result = await createBranchAction({
+      organizationId,
+      name:    newBranchName.trim(),
       address: newBranchAddress.trim() || null,
     })
     if (result.ok) {
-      setBranches(prev => [...prev, result.data])
+      setBranches(prev => [...prev, result.data as Branch])
       setNewBranchName('')
       setNewBranchAddress('')
       setShowAddBranch(false)
@@ -125,9 +130,10 @@ export default function SettingsPage() {
 
   async function saveBranchName(id: string) {
     if (!editBranchName.trim()) return
-    const result = await updateBranch(createClient(), id, { name: editBranchName.trim() })
+    setMessage(null)
+    const result = await updateBranchAction({ branchId: id, name: editBranchName.trim() })
     if (result.ok) {
-      setBranches(prev => prev.map(b => b.id === id ? result.data : b))
+      setBranches(prev => prev.map(b => b.id === id ? (result.data as Branch) : b))
       setEditingBranchId(null)
       flash('ok', 'Branch updated.')
     } else {
@@ -137,8 +143,8 @@ export default function SettingsPage() {
 
   const TABS: { key: Tab; label: string; icon: typeof Building2 }[] = [
     { key: 'organization', label: 'Organization', icon: Building2 },
-    { key: 'branches', label: 'Branches', icon: GitBranch },
-    { key: 'profile', label: 'My Profile', icon: User },
+    { key: 'branches',     label: 'Branches',     icon: GitBranch },
+    { key: 'profile',      label: 'My Profile',   icon: User },
   ]
 
   return (
@@ -146,13 +152,16 @@ export default function SettingsPage() {
       <h1 className="text-2xl font-bold">Settings</h1>
 
       {message && (
-        <p className={`rounded-md px-4 py-3 text-sm ${
+        <div className={`flex items-start justify-between gap-3 rounded-md px-4 py-3 text-sm ${
           message.type === 'ok'
             ? 'bg-[hsl(175_35%_91%)] text-[#004741]'
             : 'bg-destructive/10 text-destructive'
         }`}>
-          {message.text}
-        </p>
+          <span>{message.text}</span>
+          <button onClick={() => setMessage(null)} className="shrink-0 opacity-60 hover:opacity-100">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
       )}
 
       {/* Tab bar */}
@@ -160,7 +169,7 @@ export default function SettingsPage() {
         {TABS.map(({ key, label, icon: Icon }) => (
           <button
             key={key}
-            onClick={() => setTab(key)}
+            onClick={() => { setTab(key); setMessage(null) }}
             className={`flex items-center gap-2 border-b-2 px-4 py-2 text-sm font-medium transition-colors ${
               tab === key
                 ? 'border-primary text-primary'
@@ -224,8 +233,10 @@ export default function SettingsPage() {
       {tab === 'branches' && (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <p className="text-sm text-muted-foreground">{branches.length} branch{branches.length !== 1 ? 'es' : ''}</p>
-            <Button size="sm" onClick={() => setShowAddBranch(v => !v)}>
+            <p className="text-sm text-muted-foreground">
+              {branches.length} branch{branches.length !== 1 ? 'es' : ''}
+            </p>
+            <Button size="sm" onClick={() => { setShowAddBranch(v => !v); setMessage(null) }}>
               <Plus className="mr-2 h-4 w-4" />
               Add branch
             </Button>
@@ -235,20 +246,34 @@ export default function SettingsPage() {
             <Card>
               <CardContent className="pt-4 space-y-3">
                 <div className="space-y-2">
-                  <Label>Branch name</Label>
-                  <Input value={newBranchName} onChange={e => setNewBranchName(e.target.value)}
-                    placeholder="Kumasi Branch" />
+                  <Label>Branch name <span className="text-destructive">*</span></Label>
+                  <Input
+                    value={newBranchName}
+                    onChange={e => setNewBranchName(e.target.value)}
+                    placeholder="e.g. Kumasi Branch"
+                    autoFocus
+                    onKeyDown={e => { if (e.key === 'Enter') void addBranch() }}
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label>Address (optional)</Label>
-                  <Input value={newBranchAddress} onChange={e => setNewBranchAddress(e.target.value)}
-                    placeholder="123 Main St" />
+                  <Input
+                    value={newBranchAddress}
+                    onChange={e => setNewBranchAddress(e.target.value)}
+                    placeholder="123 Main St"
+                  />
                 </div>
                 <div className="flex gap-2">
-                  <Button size="sm" onClick={() => void addBranch()} disabled={addingBranch || !newBranchName.trim()}>
-                    {addingBranch ? 'Creating…' : 'Create'}
+                  <Button
+                    size="sm"
+                    onClick={() => void addBranch()}
+                    disabled={addingBranch || !newBranchName.trim()}
+                  >
+                    {addingBranch ? 'Creating…' : 'Create branch'}
                   </Button>
-                  <Button size="sm" variant="outline" onClick={() => setShowAddBranch(false)}>Cancel</Button>
+                  <Button size="sm" variant="outline" onClick={() => setShowAddBranch(false)}>
+                    Cancel
+                  </Button>
                 </div>
               </CardContent>
             </Card>
@@ -257,6 +282,12 @@ export default function SettingsPage() {
           {loading ? (
             <div className="space-y-3">
               {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-14 w-full" />)}
+            </div>
+          ) : branches.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-border py-12 text-center">
+              <GitBranch className="mx-auto h-8 w-8 text-muted-foreground/40 mb-3" />
+              <p className="text-sm font-medium text-muted-foreground">No branches yet</p>
+              <p className="text-xs text-muted-foreground mt-1">Click Add branch to create your first one.</p>
             </div>
           ) : (
             <div className="space-y-2">
@@ -270,13 +301,15 @@ export default function SettingsPage() {
                           onChange={e => setEditBranchName(e.target.value)}
                           className="flex-1 h-8"
                           autoFocus
+                          onKeyDown={e => {
+                            if (e.key === 'Enter') void saveBranchName(branch.id)
+                            if (e.key === 'Escape') setEditingBranchId(null)
+                          }}
                         />
-                        <Button size="sm" variant="ghost" onClick={() => void saveBranchName(branch.id)}
-                          aria-label="Save">
+                        <Button size="sm" variant="ghost" onClick={() => void saveBranchName(branch.id)} aria-label="Save">
                           <Check className="h-4 w-4" />
                         </Button>
-                        <Button size="sm" variant="ghost" onClick={() => setEditingBranchId(null)}
-                          aria-label="Cancel">
+                        <Button size="sm" variant="ghost" onClick={() => setEditingBranchId(null)} aria-label="Cancel">
                           <X className="h-4 w-4" />
                         </Button>
                       </>
@@ -291,9 +324,12 @@ export default function SettingsPage() {
                         <Badge variant={branch.is_active ? 'default' : 'secondary'} className="text-xs">
                           {branch.is_active ? 'Active' : 'Inactive'}
                         </Badge>
-                        <Button size="sm" variant="ghost"
+                        <Button
+                          size="sm"
+                          variant="ghost"
                           onClick={() => { setEditingBranchId(branch.id); setEditBranchName(branch.name) }}
-                          aria-label="Edit branch name">
+                          aria-label="Edit branch name"
+                        >
                           <Pencil className="h-4 w-4" />
                         </Button>
                       </>
@@ -323,8 +359,12 @@ export default function SettingsPage() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="phone">Phone number</Label>
-              <Input id="phone" value={phone} onChange={e => setPhone(e.target.value)}
-                placeholder="+233 24 000 0000" />
+              <Input
+                id="phone"
+                value={phone}
+                onChange={e => setPhone(e.target.value)}
+                placeholder="+233 24 000 0000"
+              />
             </div>
             <Button onClick={() => void saveProfile()} disabled={saving}>
               <Save className="mr-2 h-4 w-4" />
