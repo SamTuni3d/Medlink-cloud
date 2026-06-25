@@ -625,7 +625,7 @@ export default function InventoryPage() {
     const matchStock =
       stockFilter === 'all'         ? true :
       stockFilter === 'in_stock'    ? r.available_stock > r.reorder_point :
-      stockFilter === 'low_stock'   ? (r.available_stock > 0 && r.available_stock <= r.reorder_point) :
+      stockFilter === 'low_stock'   ? (r.reorder_point > 0 && r.available_stock < r.reorder_point) :
       stockFilter === 'out_of_stock'? r.available_stock === 0 :
       stockFilter === 'expiring'    ? (r.days_to_nearest_expiry !== null && r.days_to_nearest_expiry > 0 && r.days_to_nearest_expiry <= 90) :
       true
@@ -634,7 +634,7 @@ export default function InventoryPage() {
 
   const totalProducts     = rows.length
   const totalValue        = rows.reduce((sum, r) => sum + r.available_stock * r.selling_price, 0)
-  const lowStockCount     = rows.filter(r => r.available_stock <= r.reorder_point).length
+  const lowStockCount     = rows.filter(r => r.reorder_point > 0 && r.available_stock < r.reorder_point).length
   const expiringSoonCount = rows.filter(
     r => r.days_to_nearest_expiry !== null && r.days_to_nearest_expiry > 0 && r.days_to_nearest_expiry <= 90
   ).length
@@ -831,7 +831,7 @@ export default function InventoryPage() {
               </thead>
               <tbody className="divide-y divide-border/60">
                 {filtered.map((row) => {
-                  const isLowStock = row.available_stock <= row.reorder_point
+                  const isLowStock = row.reorder_point > 0 && row.available_stock < row.reorder_point
                   const isOut      = row.available_stock === 0
                   const isExpiring = row.days_to_nearest_expiry !== null
                     && row.days_to_nearest_expiry > 0

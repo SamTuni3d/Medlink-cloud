@@ -60,7 +60,7 @@ export default function NotificationsPage() {
 
   useEffect(() => { void load() }, [load])
 
-  const lowStock = inventory.filter(i => i.available_stock <= i.reorder_point)
+  const lowStock = inventory.filter(i => i.reorder_point > 0 && i.available_stock < i.reorder_point)
   const expiringSoon = inventory.filter(
     i =>
       i.days_to_nearest_expiry !== null &&

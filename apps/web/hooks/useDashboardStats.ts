@@ -75,7 +75,7 @@ export function useDashboardStats(
       (sum, r) => sum + r.available_stock * r.selling_price,
       0
     )
-    const lowStockCount = inventoryRows.filter(r => r.available_stock <= r.reorder_point).length
+    const lowStockCount = inventoryRows.filter(r => r.reorder_point > 0 && r.available_stock < r.reorder_point).length
     const expiringSoonCount = inventoryRows.filter(
       r => r.days_to_nearest_expiry !== null && r.days_to_nearest_expiry > 0 && r.days_to_nearest_expiry <= 90
     ).length
