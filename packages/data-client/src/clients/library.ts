@@ -11,6 +11,7 @@ import {
   type LibraryCategorySummary,
   type ImportItem,
   type SuggestMedicationInput,
+  type LibrarySubmissionResult,
 } from '../schemas/library'
 
 export interface SearchLibraryParams {
@@ -125,9 +126,8 @@ export async function getPendingSuggestions(
   try {
     const { data, error } = await client
       .from('medications_library')
-      .select('*')
-      .eq('is_verified', false)
-      .is('reviewed_at', null)
+      .select('id, name, generic_name, brand_name, category, dosage_form, strength, barcode, unit_of_measure, requires_prescription, source, status, times_used, nafdac_number, ghana_fda_code, tags, is_verified, suggested_by, reviewed_by, reviewed_at, rejection_note, created_at')
+      .eq('status', 'pending_review')
       .order('created_at', { ascending: true })
 
     if (error) return err(toAppError(error))
@@ -136,6 +136,22 @@ export async function getPendingSuggestions(
     if (!parsed.success) return err(toAppError(parsed.error))
 
     return ok(parsed.data)
+  } catch (e) {
+    return err(toAppError(e))
+  }
+}
+
+export async function getPendingSuggestionsCount(
+  client: SupabaseClient
+): Promise<Result<number>> {
+  try {
+    const { count, error } = await client
+      .from('medications_library')
+      .select('id', { count: 'exact', head: true })
+      .eq('status', 'pending_review')
+
+    if (error) return err(toAppError(error))
+    return ok(count ?? 0)
   } catch (e) {
     return err(toAppError(e))
   }
@@ -243,6 +259,9 @@ export async function importFromLibrary(
 
         medicationId = (med as { id: string }).id
         result.created++
+
+        // Increment the library's usage counter (fire-and-forget; failure is non-fatal)
+        void client.rpc('increment_library_times_used', { p_library_id: entry.id })
       }
 
       // Ensure inventory row exists for this branch
@@ -329,26 +348,21 @@ export async function suggestMedication(
 export async function approveSuggestion(
   client: SupabaseClient,
   input: { libraryId: string; reviewerId: string }
-): Promise<Result<LibraryEntry>> {
+): Promise<Result<void>> {
   try {
-    const { data, error } = await client
+    const { error } = await client
       .from('medications_library')
       .update({
-        is_verified:  true,
-        reviewed_by:  input.reviewerId,
-        reviewed_at:  new Date().toISOString(),
+        status:         'approved',
+        reviewed_by:    input.reviewerId,
+        reviewed_at:    new Date().toISOString(),
         rejection_note: null,
       })
       .eq('id', input.libraryId)
-      .select()
-      .single()
+      .eq('status', 'pending_review')
 
     if (error) return err(toAppError(error))
-
-    const parsed = LibraryEntrySchema.safeParse(data)
-    if (!parsed.success) return err(toAppError(parsed.error))
-
-    return ok(parsed.data)
+    return ok(undefined)
   } catch (e) {
     return err(toAppError(e))
   }
@@ -357,26 +371,55 @@ export async function approveSuggestion(
 export async function rejectSuggestion(
   client: SupabaseClient,
   input: { libraryId: string; reviewerId: string; note: string }
-): Promise<Result<LibraryEntry>> {
+): Promise<Result<void>> {
   try {
-    const { data, error } = await client
+    const { error } = await client
       .from('medications_library')
       .update({
-        is_verified:    false,
+        status:         'rejected',
         reviewed_by:    input.reviewerId,
         reviewed_at:    new Date().toISOString(),
         rejection_note: input.note,
       })
       .eq('id', input.libraryId)
-      .select()
-      .single()
+      .eq('status', 'pending_review')
 
     if (error) return err(toAppError(error))
+    return ok(undefined)
+  } catch (e) {
+    return err(toAppError(e))
+  }
+}
 
-    const parsed = LibraryEntrySchema.safeParse(data)
-    if (!parsed.success) return err(toAppError(parsed.error))
+// ── Crowdsourced submission ───────────────────────────────────────────────────
 
-    return ok(parsed.data)
+export interface SubmitToLibraryInput {
+  name: string
+  genericName?: string | null
+  brandName?: string | null
+  category?: string | null
+  dosageForm?: string | null
+  strength?: string | null
+  organizationId: string
+}
+
+export async function submitToLibrary(
+  client: SupabaseClient,
+  input: SubmitToLibraryInput
+): Promise<Result<LibrarySubmissionResult>> {
+  try {
+    const { data, error } = await client.rpc('submit_to_library', {
+      p_name:            input.name,
+      p_generic_name:    input.genericName   ?? null,
+      p_brand_name:      input.brandName     ?? null,
+      p_category:        input.category      ?? null,
+      p_dosage_form:     input.dosageForm    ?? null,
+      p_strength:        input.strength      ?? null,
+      p_organization_id: input.organizationId,
+    })
+
+    if (error) return err(toAppError(error))
+    return ok(data as LibrarySubmissionResult)
   } catch (e) {
     return err(toAppError(e))
   }

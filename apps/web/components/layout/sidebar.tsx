@@ -12,6 +12,8 @@ import { useAuth } from '@/providers/auth-provider'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
+import { useEffect, useState } from 'react'
+import { getPendingSuggestionsCount } from '@medlink/data-client'
 import type { RoleName } from '@medlink/data-client'
 
 interface NavItem {
@@ -46,6 +48,12 @@ const NAV_SECTIONS: NavSection[] = [
   {
     heading: 'Inventory',
     items: [
+      {
+        href: '/medications',
+        label: 'Medications',
+        icon: BookOpen,
+        roles: ['super_admin','org_admin','branch_manager','pharmacist','inventory_manager'],
+      },
       {
         href: '/inventory',
         label: 'Stock',
@@ -124,9 +132,32 @@ interface SidebarNavProps {
   onNavigate?: () => void
 }
 
+function usePendingLibraryCount() {
+  const { primaryRole } = useAuth()
+  const [count, setCount] = useState(0)
+
+  useEffect(() => {
+    if (primaryRole !== 'super_admin') return
+    const supabase = createClient()
+
+    async function fetch() {
+      const result = await getPendingSuggestionsCount(supabase)
+      if (result.ok) setCount(result.data)
+    }
+
+    void fetch()
+    // Re-check every 60 seconds
+    const interval = setInterval(() => { void fetch() }, 60_000)
+    return () => clearInterval(interval)
+  }, [primaryRole])
+
+  return count
+}
+
 export function SidebarNav({ onNavigate }: SidebarNavProps) {
   const pathname = usePathname()
   const { primaryRole } = useAuth()
+  const pendingLibraryCount = usePendingLibraryCount()
 
   return (
     <nav className="flex flex-col gap-4 px-3">
@@ -147,6 +178,9 @@ export function SidebarNav({ onNavigate }: SidebarNavProps) {
             )}
             {visible.map(({ href, label, icon: Icon }) => {
               const active = pathname === href || pathname.startsWith(href + '/')
+              const badge = href === '/settings' && pendingLibraryCount > 0
+                ? pendingLibraryCount
+                : null
               return (
                 <Link
                   key={href}
@@ -164,7 +198,12 @@ export function SidebarNav({ onNavigate }: SidebarNavProps) {
                     active ? 'text-[#C4A44C]' : 'text-white/35 group-hover:text-white/70',
                   )} />
                   <span className="flex-1 tracking-wide">{label}</span>
-                  {active && <ChevronRight className="h-3 w-3 text-[#C4A44C]/60" />}
+                  {badge !== null && (
+                    <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-orange-500 px-1 text-[10px] font-bold text-white">
+                      {badge > 99 ? '99+' : badge}
+                    </span>
+                  )}
+                  {active && !badge && <ChevronRight className="h-3 w-3 text-[#C4A44C]/60" />}
                 </Link>
               )
             })}

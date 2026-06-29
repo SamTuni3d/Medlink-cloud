@@ -13,6 +13,7 @@ export const LibraryEntrySchema = z.object({
   requires_prescription: z.boolean().optional().default(false),
   source:                z.string().optional().default('seed'),
   status:                z.string().optional().default('approved'),
+  times_used:            z.number().int().min(0).optional().default(0),
   nafdac_number:         z.string().nullable(),
   ghana_fda_code:        z.string().nullable(),
   tags:                  z.array(z.string()),
@@ -28,6 +29,15 @@ export type LibraryEntry = z.infer<typeof LibraryEntrySchema>
 
 export type LibraryEntryWithStatus = LibraryEntry & {
   already_imported: boolean
+}
+
+export type LibraryStatus = 'approved' | 'pending_review' | 'rejected'
+
+export interface LibrarySubmissionResult {
+  success: boolean
+  reason?: 'already_exists' | 'rate_limited' | 'invalid_fields' | 'db_error'
+  existing_id?: string
+  status?: LibraryStatus
 }
 
 export const LibraryCategorySummarySchema = z.object({

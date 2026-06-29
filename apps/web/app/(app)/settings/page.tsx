@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { Building2, GitBranch, User, Save, Plus, Pencil, Check, X } from 'lucide-react'
+import { Building2, GitBranch, User, Save, Plus, Pencil, Check, X, Library } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -12,6 +12,7 @@ import { useAuth } from '@/providers/auth-provider'
 import { createClient } from '@/lib/supabase/client'
 import { getOrganization, getBranches } from '@medlink/data-client'
 import type { Organization, Branch } from '@medlink/data-client'
+import LibraryReviewTab from '@/components/library/LibraryReviewTab'
 import {
   createBranchAction,
   updateBranchAction,
@@ -19,10 +20,11 @@ import {
   updateUserProfileAction,
 } from './actions'
 
-type Tab = 'organization' | 'branches' | 'profile'
+type Tab = 'organization' | 'branches' | 'profile' | 'library'
 
 export default function SettingsPage() {
-  const { user, organizationId } = useAuth()
+  const { user, organizationId, primaryRole } = useAuth()
+  const isSuperAdmin = primaryRole === 'super_admin'
 
   const [tab, setTab] = useState<Tab>('organization')
   const [org, setOrg] = useState<Organization | null>(null)
@@ -142,9 +144,10 @@ export default function SettingsPage() {
   }
 
   const TABS: { key: Tab; label: string; icon: typeof Building2 }[] = [
-    { key: 'organization', label: 'Organization', icon: Building2 },
-    { key: 'branches',     label: 'Branches',     icon: GitBranch },
-    { key: 'profile',      label: 'My Profile',   icon: User },
+    { key: 'organization', label: 'Organization',   icon: Building2 },
+    { key: 'branches',     label: 'Branches',       icon: GitBranch },
+    { key: 'profile',      label: 'My Profile',     icon: User },
+    ...(isSuperAdmin ? [{ key: 'library' as Tab, label: 'Library Review', icon: Library }] : []),
   ]
 
   return (
@@ -341,6 +344,9 @@ export default function SettingsPage() {
           )}
         </div>
       )}
+
+      {/* Library Review tab — super_admin only */}
+      {tab === 'library' && isSuperAdmin && <LibraryReviewTab />}
 
       {/* Profile tab */}
       {tab === 'profile' && (
