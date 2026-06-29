@@ -22,11 +22,11 @@ import { createClient } from '@/lib/supabase/client'
 import {
   getSuppliers, createSupplier, updateSupplier, softDeleteSupplier,
   getPurchaseOrders, createPurchaseOrder, receivePurchaseOrder,
-  cancelPurchaseOrder, getPurchaseOrderItems, getInventory,
+  cancelPurchaseOrder, getPurchaseOrderItems, getMedications,
 } from '@medlink/data-client'
 import type {
   Supplier, SupplierInsert, PurchaseOrder, PurchaseOrderItem,
-  InventoryWithBatches, POStatus,
+  Medication, POStatus,
 } from '@medlink/data-client'
 
 type Tab = 'purchase_orders' | 'suppliers'
@@ -66,7 +66,7 @@ function CreatePOModal({
   organizationId, branchId, userId,
 }: {
   open: boolean; onClose: () => void; onCreated: () => void
-  suppliers: Supplier[]; medications: InventoryWithBatches[]; currency: string
+  suppliers: Supplier[]; medications: Medication[]; currency: string
   organizationId: string; branchId: string; userId: string
 }) {
   const [supplierId, setSupplierId] = useState('')
@@ -158,36 +158,53 @@ function CreatePOModal({
             </div>
             <div className="space-y-2">
               {items.map((item, idx) => (
-                <div key={idx} className="grid grid-cols-12 gap-2 items-end rounded-lg border border-border bg-muted/30 p-3">
-                  <div className="col-span-12 sm:col-span-4 space-y-1">
+                <div key={idx} className="rounded-lg border border-border bg-muted/30 p-3 space-y-2">
+                  {/* Row 1: Medication selector */}
+                  <div className="space-y-1">
                     {idx === 0 && <p className="text-xs text-muted-foreground font-medium">Medication</p>}
                     <Select value={item.medicationId} onValueChange={v => updateLine(idx, 'medicationId', v)}>
-                      <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Select…" /></SelectTrigger>
+                      <SelectTrigger className="h-8 text-xs w-full"><SelectValue placeholder="Select medication…" /></SelectTrigger>
                       <SelectContent>
                         {medications.map(m => (
-                          <SelectItem key={m.medication_id} value={m.medication_id} className="text-xs">{m.medication_name}</SelectItem>
+                          <SelectItem key={m.id} value={m.id} className="text-xs">
+                            {m.name}{m.strength ? ` ${m.strength}` : ''}{m.dosage_form ? ` — ${m.dosage_form}` : ''}
+                          </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="col-span-3 sm:col-span-2 space-y-1">
-                    {idx === 0 && <p className="text-xs text-muted-foreground font-medium">Qty</p>}
-                    <Input className="h-8 text-xs" type="number" min="1" value={item.quantityOrdered} onChange={e => updateLine(idx, 'quantityOrdered', e.target.value)} />
+                  {/* Row 2: Qty / Unit Cost / Delete */}
+                  <div className="grid grid-cols-12 gap-2 items-end">
+                    <div className="col-span-4 space-y-1">
+                      {idx === 0 && <p className="text-xs text-muted-foreground font-medium">Qty <span className="text-destructive">*</span></p>}
+                      <Input
+                        className="h-8 text-xs text-center font-semibold"
+                        type="number" min="1"
+                        value={item.quantityOrdered}
+                        onChange={e => updateLine(idx, 'quantityOrdered', e.target.value)}
+                      />
+                    </div>
+                    <div className="col-span-4 space-y-1">
+                      {idx === 0 && <p className="text-xs text-muted-foreground font-medium">Unit Cost</p>}
+                      <Input className="h-8 text-xs" type="number" min="0" step="0.01" value={item.unitCost} onChange={e => updateLine(idx, 'unitCost', e.target.value)} />
+                    </div>
+                    <div className="col-span-4 space-y-1">
+                      {idx === 0 && <p className="text-xs text-muted-foreground font-medium">Expiry</p>}
+                      <Input className="h-8 text-xs" type="date" value={item.expiryDate} onChange={e => updateLine(idx, 'expiryDate', e.target.value)} />
+                    </div>
                   </div>
-                  <div className="col-span-3 sm:col-span-2 space-y-1">
-                    {idx === 0 && <p className="text-xs text-muted-foreground font-medium">Unit Cost</p>}
-                    <Input className="h-8 text-xs" type="number" min="0" step="0.01" value={item.unitCost} onChange={e => updateLine(idx, 'unitCost', e.target.value)} />
-                  </div>
-                  <div className="col-span-3 sm:col-span-2 space-y-1">
-                    {idx === 0 && <p className="text-xs text-muted-foreground font-medium">Batch</p>}
-                    <Input className="h-8 text-xs" value={item.batchNumber} onChange={e => updateLine(idx, 'batchNumber', e.target.value)} placeholder="Optional" />
-                  </div>
-                  <div className="col-span-3 sm:col-span-2 space-y-1">
-                    {idx === 0 && <p className="text-xs text-muted-foreground font-medium">Expiry</p>}
-                    <Input className="h-8 text-xs" type="date" value={item.expiryDate} onChange={e => updateLine(idx, 'expiryDate', e.target.value)} />
-                  </div>
-                  <div className="col-span-1 flex items-center justify-center">
-                    <button type="button" onClick={() => removeLine(idx)} disabled={items.length === 1} className="p-1 rounded text-muted-foreground hover:text-destructive transition-colors disabled:opacity-30">
+                  {/* Row 3: Batch + remove */}
+                  <div className="flex gap-2 items-end">
+                    <div className="flex-1 space-y-1">
+                      {idx === 0 && <p className="text-xs text-muted-foreground font-medium">Batch # (optional)</p>}
+                      <Input className="h-8 text-xs" value={item.batchNumber} onChange={e => updateLine(idx, 'batchNumber', e.target.value)} placeholder="e.g. BT-2025-001" />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => removeLine(idx)}
+                      disabled={items.length === 1}
+                      className="mb-0.5 flex h-8 w-8 items-center justify-center rounded text-muted-foreground hover:text-destructive transition-colors disabled:opacity-30 shrink-0"
+                    >
                       <X className="h-3.5 w-3.5" />
                     </button>
                   </div>
@@ -313,7 +330,7 @@ export default function ProcurementPage() {
   const [tab, setTab] = useState<Tab>('purchase_orders')
   const [orders, setOrders] = useState<PurchaseOrder[]>([])
   const [suppliers, setSuppliers] = useState<Supplier[]>([])
-  const [medications, setMedications] = useState<InventoryWithBatches[]>([])
+  const [medications, setMedications] = useState<Medication[]>([])
   const [loading, setLoading] = useState(true)
 
   const [showCreatePO, setShowCreatePO] = useState(false)
@@ -337,7 +354,7 @@ export default function ProcurementPage() {
     const [poRes, supRes, medRes] = await Promise.all([
       getPurchaseOrders(createClient(), activeBranch.id),
       getSuppliers(createClient(), organizationId),
-      getInventory(createClient(), activeBranch.id),
+      getMedications(createClient(), organizationId, { activeOnly: true }),
     ])
     if (poRes.ok)  setOrders(poRes.data)
     if (supRes.ok) setSuppliers(supRes.data)
@@ -400,6 +417,7 @@ export default function ProcurementPage() {
   }), [orders, search, statusFilter])
 
   const currency = medications[0]?.currency_code ?? 'GHS'
+  // medications_master rows carry currency_code; fall back to GHS (Phase 1 market)
   const activePOs = orders.filter(o => ['ordered', 'partial'].includes(o.status)).length
 
   return (
