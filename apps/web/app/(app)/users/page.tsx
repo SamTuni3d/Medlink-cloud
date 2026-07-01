@@ -19,13 +19,15 @@ import {
 } from '@/components/ui/select'
 import { useAuth } from '@/providers/auth-provider'
 import { useBranch } from '@/hooks/useBranch'
+import { useToast } from '@/hooks/use-toast'
 import { createClient } from '@/lib/supabase/client'
 import {
   listUsersWithRoles, updateUser,
   getActiveDutySessions, clockIn, clockOut, getDutyHistory,
-  getSalesLog,
+  getSalesLog, getBranches,
 } from '@medlink/data-client'
-import type { UserWithRoles, DutySessionWithUser, SaleLogEntry, RoleName } from '@medlink/data-client'
+import type { UserWithRoles, DutySessionWithUser, SaleLogEntry, RoleName, Branch } from '@medlink/data-client'
+import { inviteStaffAction } from './actions'
 
 const ROLE_COLORS: Record<RoleName, string> = {
   super_admin:       'bg-purple-100 text-purple-800',
@@ -127,9 +129,21 @@ function StatCard({ label, value, icon: Icon, color = 'gray' }: StatCardProps) {
   )
 }
 
+const ROLE_OPTIONS: { value: RoleName; label: string }[] = [
+  { value: 'org_admin',         label: 'Org Admin' },
+  { value: 'branch_manager',    label: 'Branch Manager' },
+  { value: 'pharmacist',        label: 'Pharmacist' },
+  { value: 'cashier',           label: 'Cashier' },
+  { value: 'inventory_manager', label: 'Inventory Manager' },
+  { value: 'auditor',           label: 'Auditor' },
+]
+
+const BRANCH_SCOPED = new Set(['branch_manager', 'pharmacist', 'cashier', 'inventory_manager', 'auditor'])
+
 export default function UsersPage() {
   const { organizationId, user: currentUser } = useAuth()
   const { activeBranch } = useBranch()
+  const { toast } = useToast()
 
   const [tab, setTab] = useState<Tab>('staff')
 
@@ -154,6 +168,13 @@ export default function UsersPage() {
   const [clockingIn, setClockingIn] = useState(false)
   const [clockingOutId, setClockingOutId] = useState<string | null>(null)
   const [expandedSaleId, setExpandedSaleId] = useState<string | null>(null)
+
+  // Invite staff
+  const [inviteOpen, setInviteOpen] = useState(false)
+  const [inviteForm, setInviteForm] = useState({ fullName: '', email: '', role: '', branchId: '' })
+  const [inviting, setInviting] = useState(false)
+  const [inviteError, setInviteError] = useState<string | null>(null)
+  const [branches, setBranches] = useState<Branch[]>([])
 
   const [now, setNow] = useState(() => new Date())
 
@@ -201,6 +222,11 @@ export default function UsersPage() {
   useEffect(() => { void loadDuty() }, [loadDuty])
   useEffect(() => { void loadSalesLog() }, [loadSalesLog])
 
+  useEffect(() => {
+    if (!organizationId) return
+    void getBranches(createClient(), organizationId).then(r => { if (r.ok) setBranches(r.data) })
+  }, [organizationId])
+
   async function handleToggleActive(u: UserWithRoles) {
     setTogglingId(u.id)
     const result = await updateUser(createClient(), u.id, { is_active: !u.is_active })
@@ -210,6 +236,26 @@ export default function UsersPage() {
       setError(result.error.message)
     }
     setTogglingId(null)
+  }
+
+  async function handleInvite() {
+    if (!organizationId || !currentUser) return
+    setInviteError(null)
+    setInviting(true)
+    const result = await inviteStaffAction({
+      fullName:       inviteForm.fullName,
+      email:          inviteForm.email,
+      role:           inviteForm.role as RoleName & string,
+      branchId:       inviteForm.branchId || null,
+      organizationId,
+      invitedBy:      currentUser.id,
+    })
+    setInviting(false)
+    if (!result.ok) { setInviteError(result.error.message); return }
+    toast({ title: 'Invitation sent', description: `${inviteForm.fullName} will receive an email to set up their account.` })
+    setInviteOpen(false)
+    setInviteForm({ fullName: '', email: '', role: '', branchId: '' })
+    void loadUsers()
   }
 
   async function handleClockIn() {
@@ -262,14 +308,23 @@ export default function UsersPage() {
       {/* Header */}
       <div className="flex flex-wrap items-center gap-3">
         <h1 className="text-2xl font-bold">Users</h1>
-        <Button
-          variant="outline" size="sm" className="ml-auto"
-          onClick={() => { void loadUsers(); void loadDuty(); void loadSalesLog() }}
-          disabled={usersLoading || dutyLoading || salesLoading}
-        >
-          <RefreshCw className={`mr-2 h-4 w-4 ${(usersLoading || dutyLoading || salesLoading) ? 'animate-spin' : ''}`} />
-          Refresh
-        </Button>
+        <div className="ml-auto flex items-center gap-2">
+          <Button
+            size="sm"
+            onClick={() => { setInviteError(null); setInviteOpen(true) }}
+          >
+            <Users className="mr-2 h-4 w-4" />
+            Invite Staff
+          </Button>
+          <Button
+            variant="outline" size="sm"
+            onClick={() => { void loadUsers(); void loadDuty(); void loadSalesLog() }}
+            disabled={usersLoading || dutyLoading || salesLoading}
+          >
+            <RefreshCw className={`mr-2 h-4 w-4 ${(usersLoading || dutyLoading || salesLoading) ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
+        </div>
       </div>
 
       {error && (
@@ -610,6 +665,84 @@ export default function UsersPage() {
           </Card>
         </div>
       )}
+
+      {/* Invite Staff dialog */}
+      <Dialog open={inviteOpen} onOpenChange={open => { if (!open && !inviting) setInviteOpen(false) }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Invite Staff Member</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">Full Name</label>
+              <Input
+                placeholder="e.g. Ama Owusu"
+                value={inviteForm.fullName}
+                onChange={e => setInviteForm(f => ({ ...f, fullName: e.target.value }))}
+                autoFocus
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">Email Address</label>
+              <Input
+                type="email"
+                placeholder="e.g. ama@pharmacy.com"
+                value={inviteForm.email}
+                onChange={e => setInviteForm(f => ({ ...f, email: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">Role</label>
+              <Select
+                value={inviteForm.role}
+                onValueChange={v => setInviteForm(f => ({ ...f, role: v, branchId: '' }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a role" />
+                </SelectTrigger>
+                <SelectContent>
+                  {ROLE_OPTIONS.map(r => (
+                    <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {inviteForm.role && BRANCH_SCOPED.has(inviteForm.role) && (
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">Branch</label>
+                <Select
+                  value={inviteForm.branchId}
+                  onValueChange={v => setInviteForm(f => ({ ...f, branchId: v }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select branch" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {branches.map(b => (
+                      <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            {inviteError && (
+              <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{inviteError}</p>
+            )}
+            <p className="text-xs text-muted-foreground">
+              They will receive an email with a link to set up their password and log in.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setInviteOpen(false)} disabled={inviting}>Cancel</Button>
+            <Button
+              onClick={() => void handleInvite()}
+              disabled={inviting || !inviteForm.fullName || !inviteForm.email || !inviteForm.role}
+            >
+              {inviting ? 'Sending…' : 'Send Invite'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Clock In dialog */}
       <Dialog
