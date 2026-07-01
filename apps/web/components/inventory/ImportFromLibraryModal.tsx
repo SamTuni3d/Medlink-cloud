@@ -42,6 +42,7 @@ interface SelectedItem {
   sellingPrice: string
   reorderPoint: string
   openingStock: string
+  expiryDate: string
 }
 
 type Step = 'browse' | 'prices'
@@ -103,7 +104,7 @@ export default function ImportFromLibraryModal({
       .then(({ data }) => {
         if (!data) return
         const entry = { ...(data as LibraryEntryWithStatus), already_imported: false }
-        setSelected([{ entry, sellingPrice: '', reorderPoint: '10', openingStock: '0' }])
+        setSelected([{ entry, sellingPrice: '', reorderPoint: '10', openingStock: '0', expiryDate: '' }])
         setStep('prices')
       })
   }, [open, preselectId])
@@ -132,7 +133,7 @@ export default function ImportFromLibraryModal({
     setSelected(prev => {
       const exists = prev.find(s => s.entry.id === entry.id)
       if (exists) return prev.filter(s => s.entry.id !== entry.id)
-      return [...prev, { entry, sellingPrice: '', reorderPoint: '10', openingStock: '0' }]
+      return [...prev, { entry, sellingPrice: '', reorderPoint: '10', openingStock: '0', expiryDate: '' }]
     })
   }
 
@@ -140,7 +141,7 @@ export default function ImportFromLibraryModal({
     return selected.some(s => s.entry.id === id)
   }
 
-  function updatePrice(id: string, field: 'sellingPrice' | 'reorderPoint' | 'openingStock', value: string) {
+  function updatePrice(id: string, field: 'sellingPrice' | 'reorderPoint' | 'openingStock' | 'expiryDate', value: string) {
     setSelected(prev => prev.map(s =>
       s.entry.id === id ? { ...s, [field]: value } : s
     ))
@@ -169,6 +170,7 @@ export default function ImportFromLibraryModal({
       sellingPrice: parseFloat(s.sellingPrice),
       reorderPoint: parseInt(s.reorderPoint, 10) || 10,
       openingStock: Math.max(0, parseInt(s.openingStock, 10) || 0),
+      expiryDate:   s.expiryDate || undefined,
     }))
 
     const result = await importFromLibraryAction({
@@ -421,7 +423,7 @@ function LibraryRow({
 interface PricesStepProps {
   selected: SelectedItem[]
   currencyCode: string
-  onUpdatePrice: (id: string, field: 'sellingPrice' | 'reorderPoint' | 'openingStock', value: string) => void
+  onUpdatePrice: (id: string, field: 'sellingPrice' | 'reorderPoint' | 'openingStock' | 'expiryDate', value: string) => void
   onRemove: (id: string) => void
   error: string | null
   saving: boolean
@@ -439,8 +441,9 @@ function PricesStep({ selected, currencyCode, onUpdatePrice, onRemove, error, sa
       <p className="text-sm text-muted-foreground">
         Set a selling price and opening stock for each medication. Use the trash icon to remove one.
       </p>
-      {selected.map(({ entry, sellingPrice, reorderPoint, openingStock }) => {
+      {selected.map(({ entry, sellingPrice, reorderPoint, openingStock, expiryDate }) => {
         const priceInvalid = sellingPrice !== '' && parseFloat(sellingPrice) <= 0
+        const hasOpeningStock = parseInt(openingStock, 10) > 0
         return (
           <div key={entry.id} className="border border-border rounded-lg p-4 space-y-3">
             {/* Header row: name + unit badge + remove button */}
@@ -472,7 +475,7 @@ function PricesStep({ selected, currencyCode, onUpdatePrice, onRemove, error, sa
               </button>
             </div>
 
-            {/* Fields — selling price spans full width, qty fields sit side-by-side below */}
+            {/* Fields */}
             <div className="space-y-2">
               <div className="space-y-1">
                 <Label className="text-xs">Selling price ({currencyCode}) *</Label>
@@ -487,7 +490,6 @@ function PricesStep({ selected, currencyCode, onUpdatePrice, onRemove, error, sa
                   className={priceInvalid
                     ? 'border-destructive/60 focus-visible:ring-destructive/40' : ''}
                 />
-                {/* fixed-height slot so the row below never shifts */}
                 <p className={`text-xs text-destructive transition-opacity ${priceInvalid ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
                   Must be greater than 0
                 </p>
@@ -507,17 +509,32 @@ function PricesStep({ selected, currencyCode, onUpdatePrice, onRemove, error, sa
                   />
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-xs">Reorder point (qty)</Label>
+                  <Label className="text-xs">
+                    Expiry date
+                    {hasOpeningStock && <span className="text-muted-foreground ml-1">(optional)</span>}
+                  </Label>
                   <Input
-                    type="number"
-                    min="0"
-                    step="1"
-                    placeholder="10"
-                    value={reorderPoint}
-                    onChange={e => onUpdatePrice(entry.id, 'reorderPoint', e.target.value)}
-                    disabled={saving}
+                    type="date"
+                    value={expiryDate}
+                    onChange={e => onUpdatePrice(entry.id, 'expiryDate', e.target.value)}
+                    disabled={saving || !hasOpeningStock}
+                    min={new Date().toISOString().split('T')[0]}
+                    className={!hasOpeningStock ? 'opacity-40 cursor-not-allowed' : ''}
                   />
                 </div>
+              </div>
+
+              <div className="space-y-1">
+                <Label className="text-xs">Reorder point (qty)</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  step="1"
+                  placeholder="10"
+                  value={reorderPoint}
+                  onChange={e => onUpdatePrice(entry.id, 'reorderPoint', e.target.value)}
+                  disabled={saving}
+                />
               </div>
             </div>
           </div>

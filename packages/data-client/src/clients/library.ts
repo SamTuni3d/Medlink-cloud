@@ -289,6 +289,7 @@ export async function importFromLibrary(
             cost_price:         item.purchasePrice ?? 0,
             currency_code:      currencyCode,
             created_by:         userId,
+            ...(item.expiryDate ? { expiry_date: item.expiryDate } : {}),
           })
           .select('id')
           .single()
