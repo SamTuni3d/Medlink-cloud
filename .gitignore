@@ -36,3 +36,7 @@ coverage
 npm-debug.log*
 dist
 .vercel
+
+# Claude Code internal files — never commit
+.claude/
+apps/**/.claude/
