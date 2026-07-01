@@ -28,6 +28,7 @@ import {
   ensureBranchInventoryAction,
   updateMedicationDetailsAction,
   adjustStockAction,
+  receiveStockAction,
   deactivateMedicationAction,
 } from './actions'
 import { seedMedicationsCache, seedInventoryCache } from '@/lib/sync/syncQueue'
@@ -395,6 +396,7 @@ function EditMedicationModal({
   const [price, setPrice]        = useState(String(row.selling_price))
   const [newQty, setNewQty]      = useState(String(row.available_stock))
   const [reorder, setReorder]    = useState(String(row.reorder_point))
+  const [expiryDate, setExpiryDate] = useState('')
   const [saving, setSaving]      = useState(false)
   const [error, setError]        = useState<string | null>(null)
   const { toast } = useToast()
@@ -404,6 +406,7 @@ function EditMedicationModal({
       setPrice(String(row.selling_price))
       setNewQty(String(row.available_stock))
       setReorder(String(row.reorder_point))
+      setExpiryDate('')
       setError(null)
     }
   }, [open, row])
@@ -435,7 +438,18 @@ function EditMedicationModal({
       }))
     }
 
-    if (delta !== 0) {
+    if (delta > 0) {
+      // Adding stock — create a batch so expiry date can be tracked
+      actions.push(receiveStockAction({
+        medicationId:   row.medication_id,
+        branchId,
+        organizationId,
+        performedBy:    userId,
+        qty:            delta,
+        expiryDate:     expiryDate || null,
+        notes:          'Manual stock receipt from inventory',
+      }))
+    } else if (delta < 0) {
       actions.push(adjustStockAction({
         medicationId:   row.medication_id,
         branchId,
@@ -505,6 +519,24 @@ function EditMedicationModal({
                 {delta > 0 ? `+${delta} units will be added` : `${Math.abs(delta)} units will be removed`}
               </p>
             )}
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="em-expiry">
+              Expiry Date
+              {delta <= 0 && (
+                <span className="ml-2 text-xs text-muted-foreground font-normal">(set when adding stock)</span>
+              )}
+            </Label>
+            <Input
+              id="em-expiry"
+              type="date"
+              value={expiryDate}
+              onChange={e => setExpiryDate(e.target.value)}
+              disabled={saving || delta <= 0}
+              min={new Date().toISOString().split('T')[0]}
+              className={delta <= 0 ? 'opacity-40 cursor-not-allowed' : ''}
+            />
           </div>
 
           <div className="space-y-1.5">

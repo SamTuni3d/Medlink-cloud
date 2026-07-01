@@ -194,6 +194,67 @@ export async function adjustStockAction(
   return { ok: true, data: undefined }
 }
 
+// ── Receive stock — creates a batch + movement (used when adding stock with expiry) ──
+
+const ReceiveStockSchema = z.object({
+  medicationId:   z.string().uuid(),
+  branchId:       z.string().uuid(),
+  organizationId: z.string().uuid(),
+  performedBy:    z.string().uuid(),
+  qty:            z.number().int().min(1),
+  expiryDate:     z.string().nullable().optional(),
+  notes:          z.string().default('Manual stock receipt'),
+})
+
+export async function receiveStockAction(
+  input: z.infer<typeof ReceiveStockSchema>
+): Promise<ActionResult> {
+  const parsed = ReceiveStockSchema.safeParse(input)
+  if (!parsed.success) {
+    return { ok: false, error: { code: 'VALIDATION_ERROR', message: parsed.error.issues[0]?.message ?? 'Invalid input.' } }
+  }
+
+  const supabase = await createClient()
+
+  const { data: batch, error: batchErr } = await supabase
+    .from('inventory_batches')
+    .insert({
+      organization_id:    parsed.data.organizationId,
+      branch_id:          parsed.data.branchId,
+      medication_id:      parsed.data.medicationId,
+      batch_number:       `ADJ-${Date.now()}`,
+      quantity_received:  parsed.data.qty,
+      quantity_remaining: parsed.data.qty,
+      cost_price:         0,
+      currency_code:      'GHS',
+      created_by:         parsed.data.performedBy,
+      ...(parsed.data.expiryDate ? { expiry_date: parsed.data.expiryDate } : {}),
+    })
+    .select('id')
+    .single()
+
+  if (batchErr || !batch) {
+    return { ok: false, error: { code: 'DB_ERROR', message: batchErr?.message ?? 'Failed to create batch' } }
+  }
+
+  const { error: movErr } = await supabase.from('stock_movements').insert({
+    organization_id: parsed.data.organizationId,
+    branch_id:       parsed.data.branchId,
+    medication_id:   parsed.data.medicationId,
+    batch_id:        (batch as { id: string }).id,
+    movement_type:   'receipt',
+    delta:           parsed.data.qty,
+    notes:           parsed.data.notes,
+    performed_by:    parsed.data.performedBy,
+  })
+
+  if (movErr) return { ok: false, error: { code: 'DB_ERROR', message: movErr.message } }
+
+  revalidatePath('/inventory')
+  revalidatePath('/pos')
+  return { ok: true, data: undefined }
+}
+
 // ── Barcode lookup ────────────────────────────────────────────────────────────
 // Searches medications_master (already imported) then medications_library.
 // Returns where the barcode was found so the UI can open the right modal.

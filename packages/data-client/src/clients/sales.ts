@@ -271,17 +271,29 @@ export async function getTopProducts(
   }
 }
 
-/** Mark an unsynced local sale as voided (before it reaches the server) */
+/**
+ * Void a completed sale and restore stock atomically via fn_void_sale RPC.
+ * The RPC marks the sale as 'voided' and inserts void_return stock_movements
+ * for every item; the inventory trigger fires and restores current_stock.
+ */
 export async function voidSale(
   client: SupabaseClient,
-  id: string
+  saleId: string,
+  voidedBy: string
 ): Promise<Result<Sale>> {
   try {
+    const { error: rpcError } = await client.rpc('fn_void_sale', {
+      p_sale_id:   saleId,
+      p_voided_by: voidedBy,
+    })
+
+    if (rpcError) return err(toAppError(rpcError))
+
+    // Fetch the updated sale to return
     const { data, error } = await client
       .from('sales')
-      .update({ status: 'voided' })
-      .eq('id', id)
-      .select()
+      .select('*')
+      .eq('id', saleId)
       .single()
 
     if (error) return err(toAppError(error))

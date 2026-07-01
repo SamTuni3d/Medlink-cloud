@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { Receipt, Search, RefreshCw, Eye } from 'lucide-react'
+import { Receipt, Search, RefreshCw, Eye, Ban } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -13,11 +13,21 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog'
 import { useBranch } from '@/hooks/useBranch'
+import { useAuth } from '@/providers/auth-provider'
+import { useToast } from '@/hooks/use-toast'
 import { createClient } from '@/lib/supabase/client'
 import { getSales, getSaleById } from '@medlink/data-client'
 import { formatCurrency } from '@/lib/formatCurrency'
 import type { Sale, SaleItem } from '@medlink/data-client'
+import { voidSaleAction } from './actions'
 
 type DateRange = 'today' | 'week' | 'month'
 
@@ -45,6 +55,8 @@ function paymentLabel(method: Sale['payment_method']) {
 
 export default function SalesPage() {
   const { activeBranch } = useBranch()
+  const { user } = useAuth()
+  const { toast } = useToast()
   const [sales, setSales] = useState<Sale[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -52,6 +64,8 @@ export default function SalesPage() {
   const [search, setSearch] = useState('')
   const [selectedSale, setSelectedSale] = useState<{ sale: Sale; items: SaleItem[] } | null>(null)
   const [detailLoading, setDetailLoading] = useState(false)
+  const [voidTarget, setVoidTarget] = useState<Sale | null>(null)
+  const [voiding, setVoiding] = useState(false)
 
   const load = useCallback(async () => {
     if (!activeBranch) { setLoading(false); return }
@@ -83,6 +97,23 @@ export default function SalesPage() {
     const result = await getSaleById(createClient(), sale.id)
     if (result.ok) setSelectedSale(result.data)
     setDetailLoading(false)
+  }
+
+  async function handleVoid() {
+    if (!voidTarget || !user) return
+    setVoiding(true)
+    const result = await voidSaleAction({ saleId: voidTarget.id, voidedBy: user.id })
+    setVoiding(false)
+    setVoidTarget(null)
+    if (!result.ok) {
+      toast({ title: 'Could not void sale', description: result.error.message, variant: 'destructive' })
+      return
+    }
+    setSales(prev => prev.map(s => s.id === voidTarget.id ? { ...s, status: 'voided' as const } : s))
+    if (selectedSale?.sale.id === voidTarget.id) {
+      setSelectedSale(prev => prev ? { ...prev, sale: { ...prev.sale, status: 'voided' as const } } : null)
+    }
+    toast({ title: 'Sale voided', description: `${voidTarget.sale_number} has been reversed and stock restored.` })
   }
 
   const RANGES: { key: DateRange; label: string }[] = [
@@ -305,11 +336,44 @@ export default function SalesPage() {
                     </>
                   )}
                 </div>
+
+                {selectedSale.sale.status === 'completed' && (
+                  <div className="pt-2">
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      className="w-full"
+                      onClick={() => setVoidTarget(selectedSale.sale)}
+                    >
+                      <Ban className="mr-2 h-4 w-4" />
+                      Void Sale
+                    </Button>
+                  </div>
+                )}
               </div>
             </>
           )}
         </SheetContent>
       </Sheet>
+
+      {/* Void confirmation dialog */}
+      <Dialog open={!!voidTarget} onOpenChange={open => { if (!open && !voiding) setVoidTarget(null) }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-base font-semibold">Void this sale?</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            <span className="font-medium text-foreground">{voidTarget?.sale_number}</span> will be marked as voided
+            and all items will be returned to stock. This cannot be undone.
+          </p>
+          <DialogFooter className="pt-2">
+            <Button variant="outline" onClick={() => setVoidTarget(null)} disabled={voiding}>Cancel</Button>
+            <Button variant="destructive" onClick={() => void handleVoid()} disabled={voiding}>
+              {voiding ? 'Voiding…' : 'Void Sale'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
