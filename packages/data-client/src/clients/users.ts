@@ -134,7 +134,7 @@ export async function listUsersWithRoles(
   try {
     const { data, error } = await client
       .from('users')
-      .select('*, user_roles(role_id, branch_id, roles(name))')
+      .select('*, user_roles!user_roles_user_id_fkey(role_id, branch_id, roles(name))')
       .eq('organization_id', organizationId)
       .order('full_name', { ascending: true })
 
