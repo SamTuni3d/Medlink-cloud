@@ -130,6 +130,23 @@ export async function createMedication(
   }
 }
 
+export async function deleteMedication(
+  client: SupabaseClient,
+  id: string
+): Promise<Result<void>> {
+  try {
+    const { error } = await client
+      .from('medications_master')
+      .delete()
+      .eq('id', id)
+
+    if (error) return err(toAppError(error))
+    return ok(undefined)
+  } catch (e) {
+    return err(toAppError(e))
+  }
+}
+
 export async function updateMedication(
   client: SupabaseClient,
   id: string,

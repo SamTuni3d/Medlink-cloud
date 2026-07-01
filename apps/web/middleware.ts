@@ -16,6 +16,13 @@ export function middleware(request: NextRequest) {
   ]
   const isAuthRoute = authRoutes.some((route) => pathname.startsWith(route))
 
+  // API routes handle their own auth — never gate them here.
+  // This is critical for /api/auth/callback which must run without a session
+  // to exchange the password-reset / email-confirm code for a cookie.
+  if (pathname.startsWith('/api/')) {
+    return NextResponse.next()
+  }
+
   // Supabase stores the session in a cookie named sb-<ref>-auth-token
   const hasSession = request.cookies.getAll().some(
     (c) => c.name.startsWith('sb-') && c.name.includes('-auth-token')

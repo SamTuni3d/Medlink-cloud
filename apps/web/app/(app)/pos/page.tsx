@@ -169,7 +169,119 @@ function Receipt({
   const methodLabel = paymentMethod.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
 
   function handlePrint() {
-    window.print()
+    const win = window.open('', '_blank', 'toolbar=0,menubar=0,scrollbars=0,width=420,height=720')
+    if (!win) { window.print(); return }
+
+    const rows = items.map(item => `
+      <tr>
+        <td style="padding:2px 0;vertical-align:top;font-size:11px">${item.name}</td>
+        <td style="padding:2px 4px;text-align:right;white-space:nowrap;font-size:11px;color:#555">
+          ${item.quantity} × ${formatCurrency(item.unitPrice, item.currencyCode)}
+        </td>
+        <td style="padding:2px 0;text-align:right;font-weight:600;white-space:nowrap;font-size:11px">
+          ${formatCurrency(item.unitPrice * item.quantity, item.currencyCode)}
+        </td>
+      </tr>`).join('')
+
+    win.document.write(`<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Receipt ${saleNumber}</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Courier New', Courier, monospace; font-size: 12px; background: #fff; color: #111; }
+    @page { size: 80mm auto; margin: 4mm; }
+    .header { background: #004741 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact;
+              color: #fff; text-align: center; padding: 12px 16px 10px; }
+    .header .brand { color: #C4A44C; font-size: 10px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; }
+    .header .branch { font-size: 14px; font-weight: 700; margin-top: 2px; }
+    .header .address { font-size: 10px; opacity: 0.75; margin-top: 2px; }
+    .body { padding: 10px 14px; }
+    .meta { display: flex; justify-content: space-between; font-size: 10px; color: #555; margin-bottom: 10px; }
+    .meta .label { font-weight: 600; color: #111; }
+    .divider { border: none; border-top: 1px dashed #bbb; margin: 8px 0; }
+    table { width: 100%; border-collapse: collapse; }
+    thead th { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
+               color: #555; padding-bottom: 4px; }
+    thead th:first-child { text-align: left; }
+    thead th:not(:first-child) { text-align: right; }
+    .totals { font-size: 12px; }
+    .totals tr td { padding: 2px 0; }
+    .totals .total-row td { font-size: 14px; font-weight: 700; padding-top: 4px; }
+    .footer { text-align: center; font-size: 10px; color: #555; margin-top: 8px; }
+    .footer .thanks { font-weight: 700; color: #111; font-size: 11px; margin-bottom: 3px; }
+    .footer .powered { font-size: 9px; opacity: 0.5; margin-top: 6px; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="brand">MedLink Pharmacy</div>
+    <div class="branch">${branchName}</div>
+    ${branchAddress ? `<div class="address">${branchAddress}</div>` : ''}
+  </div>
+  <div class="body">
+    <div class="meta">
+      <div>
+        <div><span class="label">Date:</span> ${dateStr}</div>
+        <div><span class="label">Time:</span> ${timeStr}</div>
+        <div><span class="label">Cashier:</span> ${cashierName}</div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-weight:700;font-size:11px">${saleNumber}</div>
+        <div style="font-size:9px;text-transform:uppercase;letter-spacing:1px;margin-top:2px">Official Receipt</div>
+      </div>
+    </div>
+    <hr class="divider">
+    <table>
+      <thead>
+        <tr>
+          <th>Item</th>
+          <th>Qty × Price</th>
+          <th>Amount</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <hr class="divider">
+    <table class="totals">
+      <tr>
+        <td style="color:#555">Subtotal</td>
+        <td style="text-align:right">${formatCurrency(subtotal, currencyCode)}</td>
+      </tr>
+      <tr class="total-row">
+        <td>TOTAL</td>
+        <td style="text-align:right">${formatCurrency(total, currencyCode)}</td>
+      </tr>
+    </table>
+    <hr class="divider">
+    <table>
+      <tr>
+        <td style="color:#555;font-size:11px">Payment Method</td>
+        <td style="text-align:right;font-weight:600;text-transform:capitalize;font-size:11px">${methodLabel}</td>
+      </tr>
+      ${amountTendered !== null ? `<tr>
+        <td style="color:#555;font-size:11px">Amount Tendered</td>
+        <td style="text-align:right;font-size:11px">${formatCurrency(amountTendered, currencyCode)}</td>
+      </tr>` : ''}
+      ${change !== null && change >= 0 ? `<tr>
+        <td style="font-weight:700;color:#004741;font-size:11px">Change</td>
+        <td style="text-align:right;font-weight:700;color:#004741;font-size:11px">${formatCurrency(change, currencyCode)}</td>
+      </tr>` : ''}
+    </table>
+    <hr class="divider">
+    <div class="footer">
+      <div class="thanks">Thank you for your purchase!</div>
+      <div>Goods sold are not returnable unless defective.</div>
+      <div>Keep this receipt as proof of purchase.</div>
+      <div class="powered">Powered by MedLink Cloud</div>
+    </div>
+  </div>
+  <script>window.addEventListener('load', function(){ setTimeout(function(){ window.print(); window.close(); }, 250); });<\/script>
+</body>
+</html>`)
+    win.document.close()
+    win.focus()
   }
 
   return (
@@ -309,7 +421,7 @@ function ProductCard({ product, onAdd }: ProductCardProps) {
           Rx
         </Badge>
       )}
-      <p className="truncate text-sm font-semibold leading-tight">{product.name}</p>
+      <p className="line-clamp-2 text-sm font-semibold leading-tight">{product.name}</p>
       {product.strength && (
         <p className="text-xs text-muted-foreground">{product.strength}</p>
       )}
@@ -337,6 +449,7 @@ export default function POSPage() {
   const [barcodeInput, setBarcodeInput] = useState('')
   const [search, setSearch] = useState('')
   const [showPayment, setShowPayment] = useState(false)
+  const [showCartSheet, setShowCartSheet] = useState(false)
   const [receipt, setReceipt] = useState<null | {
     saleNumber: string
     branchName: string
@@ -560,7 +673,7 @@ export default function POSPage() {
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto px-3 pb-3">
+          <div className="flex-1 overflow-y-auto px-3 pb-3 md:pb-3 pb-24">
             {loading ? (
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
                 {Array.from({ length: 8 }).map((_, i) => (
@@ -585,8 +698,8 @@ export default function POSPage() {
           </div>
         </div>
 
-        {/* Right — cart */}
-        <div className="flex w-72 shrink-0 flex-col bg-card lg:w-80">
+        {/* Right — cart (desktop only) */}
+        <div className="hidden md:flex w-72 shrink-0 flex-col bg-card lg:w-80">
           <div className="flex items-center gap-2 border-b px-4 py-3">
             <ShoppingCart className="h-4 w-4" />
             <span className="font-semibold">Cart</span>
@@ -686,6 +799,131 @@ export default function POSPage() {
           </div>
         </div>
       </div>
+
+      {/* Mobile cart bottom bar */}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 z-30 border-t bg-card shadow-[0_-2px_8px_rgba(0,0,0,0.08)]">
+        {items.length === 0 ? (
+          <div className="px-4 py-3 text-center text-sm text-muted-foreground">Cart is empty</div>
+        ) : (
+          <div className="flex items-center gap-3 px-4 py-3">
+            <button
+              onClick={() => setShowCartSheet(true)}
+              className="flex flex-1 items-center gap-3 min-w-0"
+            >
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground text-sm font-bold">
+                {items.reduce((sum, i) => sum + i.quantity, 0)}
+              </div>
+              <div className="min-w-0 text-left">
+                <p className="text-xs text-muted-foreground">View cart</p>
+                <p className="text-sm font-bold text-primary">
+                  {formatCurrency(totals.total, items[0]?.currencyCode ?? 'GHS')}
+                </p>
+              </div>
+            </button>
+            <Button
+              size="sm"
+              className="shrink-0 px-6"
+              onClick={() => setShowPayment(true)}
+              disabled={isCompleting}
+            >
+              {isCompleting ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Pay'}
+            </Button>
+          </div>
+        )}
+      </div>
+
+      {/* Mobile cart sheet */}
+      {showCartSheet && (
+        <div className="md:hidden fixed inset-0 z-40 flex flex-col justify-end">
+          <div
+            className="absolute inset-0 bg-black/40"
+            onClick={() => setShowCartSheet(false)}
+          />
+          <div className="relative flex max-h-[80vh] flex-col rounded-t-2xl bg-card shadow-2xl">
+            {/* Sheet header */}
+            <div className="flex items-center justify-between border-b px-4 py-3">
+              <div className="flex items-center gap-2">
+                <ShoppingCart className="h-4 w-4" />
+                <span className="font-semibold">Cart</span>
+                <Badge variant="secondary">{items.length}</Badge>
+              </div>
+              <button
+                onClick={() => setShowCartSheet(false)}
+                className="flex h-7 w-7 items-center justify-center rounded-full bg-muted text-muted-foreground hover:text-foreground text-sm"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Cart items */}
+            <div className="flex-1 overflow-y-auto p-3 space-y-2">
+              {items.map(item => (
+                <div
+                  key={item.medicationId}
+                  className="flex items-start gap-2 rounded-lg border bg-background p-3"
+                >
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium leading-tight">{item.medicationName}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {formatCurrency(item.unitPrice, item.currencyCode)} each
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button
+                      onClick={() => updateQty(item.medicationId, item.quantity - 1)}
+                      className="flex h-7 w-7 items-center justify-center rounded border hover:bg-accent"
+                    >
+                      <Minus className="h-3 w-3" />
+                    </button>
+                    <input
+                      type="number"
+                      min="1"
+                      value={item.quantity}
+                      onChange={e => {
+                        const v = parseInt(e.target.value, 10)
+                        if (!isNaN(v) && v >= 1) updateQty(item.medicationId, v)
+                      }}
+                      className="w-10 rounded border border-border bg-background text-center text-sm font-medium py-0.5 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:outline-none focus:ring-1 focus:ring-primary"
+                    />
+                    <button
+                      onClick={() => updateQty(item.medicationId, item.quantity + 1)}
+                      className="flex h-7 w-7 items-center justify-center rounded border hover:bg-accent"
+                    >
+                      <Plus className="h-3 w-3" />
+                    </button>
+                    <button
+                      onClick={() => removeItem(item.medicationId)}
+                      className="ml-1 flex h-7 w-7 items-center justify-center rounded text-muted-foreground hover:text-destructive"
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Totals + actions */}
+            <div className="border-t p-4 space-y-3">
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Subtotal</span>
+                <span className="font-mono">{formatCurrency(totals.subtotal, items[0]?.currencyCode ?? 'GHS')}</span>
+              </div>
+              <div className="flex justify-between font-bold text-base">
+                <span>Total</span>
+                <span className="font-mono text-primary">{formatCurrency(totals.total, items[0]?.currencyCode ?? 'GHS')}</span>
+              </div>
+              <div className="flex gap-2">
+                <Button variant="outline" className="flex-1" onClick={() => { clearCart(); setShowCartSheet(false) }}>
+                  Clear
+                </Button>
+                <Button className="flex-1" onClick={() => { setShowCartSheet(false); setShowPayment(true) }}>
+                  Pay
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modals */}
       {showPayment && items.length > 0 && (

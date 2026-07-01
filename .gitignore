@@ -35,3 +35,4 @@ coverage
 *.pem
 npm-debug.log*
 dist
+.vercel
