@@ -3,7 +3,9 @@
 import { z } from 'zod'
 import { revalidatePath } from 'next/cache'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { createUserRecord, getRoleIdByName, assignUserRole } from '@medlink/data-client'
+import { createClient } from '@/lib/supabase/server'
+import { createUserRecord, getRoleIdByName, assignUserRole, getBranches } from '@medlink/data-client'
+import type { Branch } from '@medlink/data-client'
 
 export type ActionResult<T = void> =
   | { ok: true; data: T }
@@ -97,4 +99,33 @@ export async function inviteStaffAction(
 
   revalidatePath('/users')
   return { ok: true, data: undefined }
+}
+
+export async function getBranchesAction(): Promise<ActionResult<Branch[]>> {
+  try {
+    const supabase = await createClient()
+    const { data: { user }, error: authErr } = await supabase.auth.getUser()
+    if (authErr || !user) {
+      return { ok: false, error: { code: 'UNAUTHORIZED', message: 'Not authenticated.' } }
+    }
+
+    // Use admin client to reliably bypass any JWT-timing RLS issues on branch reads
+    let admin: ReturnType<typeof createAdminClient>
+    try { admin = createAdminClient() } catch {
+      return { ok: false, error: { code: 'UNKNOWN_ERROR', message: 'Server configuration error.' } }
+    }
+
+    // Resolve the user's organization from the database (authoritative source)
+    const { data: userRow } = await admin.from('users').select('organization_id').eq('id', user.id).single()
+    if (!userRow?.organization_id) {
+      return { ok: false, error: { code: 'NOT_FOUND', message: 'User organization not found.' } }
+    }
+
+    const result = await getBranches(admin, userRow.organization_id)
+    if (!result.ok) return { ok: false, error: result.error }
+    return { ok: true, data: result.data }
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : 'Unknown error'
+    return { ok: false, error: { code: 'UNKNOWN_ERROR', message: msg } }
+  }
 }

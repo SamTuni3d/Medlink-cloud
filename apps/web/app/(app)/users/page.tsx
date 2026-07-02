@@ -24,10 +24,10 @@ import { createClient } from '@/lib/supabase/client'
 import {
   listUsersWithRoles, updateUser,
   getActiveDutySessions, clockIn, clockOut, getDutyHistory,
-  getSalesLog, getBranches,
+  getSalesLog,
 } from '@medlink/data-client'
 import type { UserWithRoles, DutySessionWithUser, SaleLogEntry, RoleName, Branch } from '@medlink/data-client'
-import { inviteStaffAction } from './actions'
+import { inviteStaffAction, getBranchesAction } from './actions'
 
 const ROLE_COLORS: Record<RoleName, string> = {
   super_admin:       'bg-purple-100 text-purple-800',
@@ -175,6 +175,7 @@ export default function UsersPage() {
   const [inviting, setInviting] = useState(false)
   const [inviteError, setInviteError] = useState<string | null>(null)
   const [branches, setBranches] = useState<Branch[]>([])
+  const [branchesLoading, setBranchesLoading] = useState(false)
 
   const [now, setNow] = useState(() => new Date())
 
@@ -223,9 +224,12 @@ export default function UsersPage() {
   useEffect(() => { void loadSalesLog() }, [loadSalesLog])
 
   useEffect(() => {
-    if (!organizationId) return
-    void getBranches(createClient(), organizationId).then(r => { if (r.ok) setBranches(r.data) })
-  }, [organizationId])
+    setBranchesLoading(true)
+    void getBranchesAction().then(r => {
+      if (r.ok) setBranches(r.data)
+      setBranchesLoading(false)
+    })
+  }, [])
 
   async function handleToggleActive(u: UserWithRoles) {
     setTogglingId(u.id)
@@ -713,14 +717,21 @@ export default function UsersPage() {
                 <Select
                   value={inviteForm.branchId}
                   onValueChange={v => setInviteForm(f => ({ ...f, branchId: v }))}
+                  disabled={branchesLoading}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Select branch" />
+                    <SelectValue placeholder={branchesLoading ? 'Loading branches…' : 'Select branch'} />
                   </SelectTrigger>
                   <SelectContent>
-                    {branches.map(b => (
-                      <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
-                    ))}
+                    {branches.length === 0 && !branchesLoading ? (
+                      <div className="px-3 py-4 text-sm text-muted-foreground text-center">
+                        No branches found
+                      </div>
+                    ) : (
+                      branches.map(b => (
+                        <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
+                      ))
+                    )}
                   </SelectContent>
                 </Select>
               </div>
