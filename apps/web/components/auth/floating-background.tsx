@@ -36,7 +36,7 @@ export function FloatingBackground() {
   }, [])
 
   return (
-    <div className="pointer-events-none fixed inset-0 overflow-hidden" aria-hidden="true">
+    <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
 
       {/* ── Purple dome glow anchored to the bottom — image 1 ── */}
       <div className="auth-dome-pulse absolute bottom-[-8%] left-1/2 h-[520px] w-[900px] -translate-x-1/2 rounded-[50%] bg-purple-700/40 blur-[110px]" />
