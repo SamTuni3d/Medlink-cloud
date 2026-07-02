@@ -368,8 +368,6 @@ export default function MedicationsPage() {
   const activeCount   = medications.filter(m => m.is_active).length
   const inactiveCount = medications.filter(m => !m.is_active).length
 
-  const currencyCode = activeBranch ? 'GHS' : 'GHS'
-
   return (
     <div className="space-y-6">
       {/* Header */}

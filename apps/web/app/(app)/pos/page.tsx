@@ -19,7 +19,6 @@ import {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import { Separator } from '@/components/ui/separator'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
@@ -647,7 +646,7 @@ export default function POSPage() {
         setIsCompleting(false)
       }
     },
-    [activeBranch, organizationId, user, items, totals.total, clearCart]
+    [activeBranch, organizationId, user, items, totals.total, totals.subtotal, clearCart]
   )
 
   const handleCloseReceipt = useCallback(() => {
