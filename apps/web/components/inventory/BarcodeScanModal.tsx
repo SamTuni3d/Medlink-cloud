@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { Scan, Camera, CameraOff, Keyboard, X, Loader2 } from 'lucide-react'
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
@@ -9,19 +9,10 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { lookupBarcodeAction, type BarcodeLookupResult } from '@/app/(app)/inventory/actions'
 
-// BarcodeDetector is a browser API not yet in TypeScript's lib
-declare const BarcodeDetector: {
-  new (options?: { formats?: string[] }): {
-    detect(image: HTMLVideoElement | HTMLCanvasElement | ImageBitmap): Promise<Array<{ rawValue: string }>>
-  }
-  getSupportedFormats(): Promise<string[]>
-}
-
 interface BarcodeScanModalProps {
   open: boolean
   onClose: () => void
   organizationId: string
-  /** Called once a barcode is resolved; caller opens the right modal. */
   onResult: (barcode: string, result: BarcodeLookupResult) => void
 }
 
@@ -30,26 +21,24 @@ type Mode = 'keyboard' | 'camera'
 export default function BarcodeScanModal({
   open, onClose, organizationId, onResult,
 }: BarcodeScanModalProps) {
-  const [mode, setMode]             = useState<Mode>('keyboard')
-  const [barcode, setBarcode]       = useState('')
-  const [looking, setLooking]       = useState(false)
-  const [cameraErr, setCameraErr]   = useState<string | null>(null)
+  const [mode, setMode]           = useState<Mode>('keyboard')
+  const [barcode, setBarcode]     = useState('')
+  const [looking, setLooking]     = useState(false)
+  const [cameraErr, setCameraErr] = useState<string | null>(null)
   const [cameraActive, setCameraActive] = useState(false)
 
   const inputRef    = useRef<HTMLInputElement>(null)
   const videoRef    = useRef<HTMLVideoElement>(null)
-  const streamRef   = useRef<MediaStream | null>(null)
-  const rafRef      = useRef<number | null>(null)
-  const resolvedRef = useRef(false)  // prevent double-firing
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const readerRef   = useRef<any>(null)
+  const resolvedRef = useRef(false)
 
-  // Auto-focus input when modal opens in keyboard mode
   useEffect(() => {
     if (open && mode === 'keyboard') {
       setTimeout(() => inputRef.current?.focus(), 80)
     }
   }, [open, mode])
 
-  // Cleanup camera on close
   useEffect(() => {
     if (!open) {
       stopCamera()
@@ -61,54 +50,44 @@ export default function BarcodeScanModal({
   }, [open]) // eslint-disable-line react-hooks/exhaustive-deps
 
   function stopCamera() {
-    if (rafRef.current != null) { cancelAnimationFrame(rafRef.current); rafRef.current = null }
-    streamRef.current?.getTracks().forEach(t => t.stop())
-    streamRef.current = null
+    try { readerRef.current?.reset() } catch { /* ignore */ }
+    readerRef.current = null
     setCameraActive(false)
   }
 
   async function startCamera() {
     setCameraErr(null)
     try {
-      // Check browser support
-      if (typeof BarcodeDetector === 'undefined') {
-        setCameraErr('Camera scanning is not supported in this browser. Please use a USB scanner or type the barcode.')
-        return
+      // Dynamic import keeps ZXing out of the initial bundle
+      const { BrowserMultiFormatReader } = await import('@zxing/browser')
+      const reader = new BrowserMultiFormatReader()
+      readerRef.current = reader
+
+      if (!videoRef.current) return
+
+      await reader.decodeFromVideoDevice(
+        undefined,          // undefined = default back camera
+        videoRef.current,
+        (result, err) => {
+          if (result && !resolvedRef.current) {
+            void handleBarcode(result.getText())
+          }
+          // NotFoundException fires every frame when nothing is detected — ignore it
+          if (err && err.name !== 'NotFoundException') {
+            setCameraErr('Scanner error. Try the keyboard input instead.')
+          }
+        }
+      )
+      setCameraActive(true)
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : ''
+      if (msg.includes('Permission') || msg.includes('NotAllowed')) {
+        setCameraErr('Camera access denied. Please allow camera access and try again.')
+      } else {
+        setCameraErr('Could not start camera. Try the keyboard input instead.')
       }
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment' },
-      })
-      streamRef.current = stream
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream
-        await videoRef.current.play()
-        setCameraActive(true)
-        scanLoop()
-      }
-    } catch {
-      setCameraErr('Camera access denied. Please allow camera access or use a USB scanner.')
     }
   }
-
-  const scanLoop = useCallback(() => {
-    const video = videoRef.current
-    if (!video || resolvedRef.current) return
-
-    const detect = async () => {
-      if (!video || resolvedRef.current) return
-      try {
-        const detector = new BarcodeDetector({ formats: ['ean_13', 'ean_8', 'code_128', 'upc_a', 'upc_e', 'qr_code', 'code_39'] })
-        const results = await detector.detect(video)
-        const first = results[0]
-        if (results.length > 0 && first?.rawValue) {
-          void handleBarcode(first.rawValue)
-          return
-        }
-      } catch { /* camera not ready yet */ }
-      rafRef.current = requestAnimationFrame(detect)
-    }
-    rafRef.current = requestAnimationFrame(detect)
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleBarcode(code: string) {
     if (resolvedRef.current || !code.trim()) return
@@ -132,8 +111,6 @@ export default function BarcodeScanModal({
     }
   }
 
-  const isCameraSupported = typeof window !== 'undefined' && 'mediaDevices' in navigator
-
   return (
     <Dialog open={open} onOpenChange={v => { if (!v) onClose() }}>
       <DialogContent className="max-w-sm">
@@ -155,21 +132,19 @@ export default function BarcodeScanModal({
             }`}
           >
             <Keyboard className="h-4 w-4" />
-            USB Scanner / Type
+            USB / Type
           </button>
-          {isCameraSupported && (
-            <button
-              onClick={() => { setMode('camera'); if (!cameraActive) void startCamera() }}
-              className={`flex flex-1 items-center justify-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
-                mode === 'camera'
-                  ? 'border-primary bg-primary/10 text-primary'
-                  : 'border-border text-muted-foreground hover:border-primary/40'
-              }`}
-            >
-              <Camera className="h-4 w-4" />
-              Camera
-            </button>
-          )}
+          <button
+            onClick={() => { setMode('camera'); setCameraErr(null); if (!cameraActive) void startCamera() }}
+            className={`flex flex-1 items-center justify-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
+              mode === 'camera'
+                ? 'border-primary bg-primary/10 text-primary'
+                : 'border-border text-muted-foreground hover:border-primary/40'
+            }`}
+          >
+            <Camera className="h-4 w-4" />
+            Camera
+          </button>
         </div>
 
         {/* Keyboard / USB input */}
@@ -210,7 +185,6 @@ export default function BarcodeScanModal({
                 muted
                 playsInline
               />
-              {/* Targeting overlay */}
               {cameraActive && (
                 <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
                   <div className="h-28 w-56 rounded border-2 border-white/70 shadow-[0_0_0_9999px_rgba(0,0,0,0.4)]" />
@@ -236,7 +210,6 @@ export default function BarcodeScanModal({
           </div>
         )}
 
-        {/* Error / status */}
         {cameraErr && (
           <div className="flex items-start gap-2 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
             <X className="mt-0.5 h-4 w-4 shrink-0" />

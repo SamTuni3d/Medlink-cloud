@@ -12,12 +12,18 @@ import {
   Loader2,
   ScanBarcode,
   Printer,
+  Camera,
+  CameraOff,
+  X,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { Skeleton } from '@/components/ui/skeleton'
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle,
+} from '@/components/ui/dialog'
 import { useCart } from '@/hooks/useCart'
 import { usePosData } from '@/hooks/usePosData'
 import { useSyncQueue } from '@/hooks/useSyncQueue'
@@ -445,11 +451,18 @@ export default function POSPage() {
   const { pendingCount, isSyncing } = useSyncQueue()
   const { toast } = useToast()
 
-  const barcodeRef = useRef<HTMLInputElement>(null)
-  const [barcodeInput, setBarcodeInput] = useState('')
-  const [search, setSearch] = useState('')
-  const [showPayment, setShowPayment] = useState(false)
-  const [showCartSheet, setShowCartSheet] = useState(false)
+  const barcodeRef   = useRef<HTMLInputElement>(null)
+  const videoRef     = useRef<HTMLVideoElement>(null)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const scannerRef   = useRef<any>(null)
+  const scannedRef   = useRef(false)
+  const [barcodeInput, setBarcodeInput]       = useState('')
+  const [search, setSearch]                   = useState('')
+  const [showPayment, setShowPayment]         = useState(false)
+  const [showCartSheet, setShowCartSheet]     = useState(false)
+  const [showCamera, setShowCamera]           = useState(false)
+  const [cameraActive, setCameraActive]       = useState(false)
+  const [cameraErr, setCameraErr]             = useState<string | null>(null)
   const [receipt, setReceipt] = useState<null | {
     saleNumber: string
     branchName: string
@@ -543,6 +556,46 @@ export default function POSPage() {
     },
     [products, handleAddProduct, toast]
   )
+
+  function stopPosCamera() {
+    try { scannerRef.current?.reset() } catch { /* ignore */ }
+    scannerRef.current = null
+    setCameraActive(false)
+    scannedRef.current = false
+  }
+
+  async function startPosCamera() {
+    setCameraErr(null)
+    scannedRef.current = false
+    try {
+      const { BrowserMultiFormatReader } = await import('@zxing/browser')
+      const reader = new BrowserMultiFormatReader()
+      scannerRef.current = reader
+      if (!videoRef.current) return
+      await reader.decodeFromVideoDevice(undefined, videoRef.current, (result, err) => {
+        if (result && !scannedRef.current) {
+          scannedRef.current = true
+          stopPosCamera()
+          setShowCamera(false)
+          void handleBarcodeScan(result.getText())
+        }
+        if (err && err.name !== 'NotFoundException') {
+          setCameraErr('Scanner error. Try typing the barcode instead.')
+        }
+      })
+      setCameraActive(true)
+    } catch {
+      setCameraErr('Camera access denied. Please allow camera access.')
+    }
+  }
+
+  function openPosCamera() {
+    setShowCamera(true)
+    setCameraErr(null)
+    setCameraActive(false)
+    // Small delay so the video element is mounted before starting
+    setTimeout(() => { void startPosCamera() }, 150)
+  }
 
   const handleConfirmPayment = useCallback(
     async (method: 'cash' | 'card' | 'mobile_money' | 'credit', tendered: number | null) => {
@@ -641,23 +694,34 @@ export default function POSPage() {
         <div className="flex flex-1 flex-col overflow-hidden border-r">
           {/* Barcode scanner — auto-focused; USB scanners send Enter after each scan */}
           <div className="border-b bg-amber-50/60 dark:bg-amber-900/10 px-3 py-2">
-            <div className="relative">
-              <ScanBarcode className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-amber-600 dark:text-amber-500" />
-              <Input
-                ref={barcodeRef}
-                className="pl-9 font-mono text-sm border-amber-200 dark:border-amber-800 focus-visible:ring-amber-400"
-                placeholder="Scan barcode…"
-                value={barcodeInput}
-                onChange={e => setBarcodeInput(e.target.value)}
-                onKeyDown={e => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault()
-                    void handleBarcodeScan(barcodeInput)
-                  }
-                }}
-                autoComplete="off"
-                spellCheck={false}
-              />
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <ScanBarcode className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-amber-600 dark:text-amber-500" />
+                <Input
+                  ref={barcodeRef}
+                  className="pl-9 font-mono text-sm border-amber-200 dark:border-amber-800 focus-visible:ring-amber-400"
+                  placeholder="Scan barcode…"
+                  value={barcodeInput}
+                  onChange={e => setBarcodeInput(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault()
+                      void handleBarcodeScan(barcodeInput)
+                    }
+                  }}
+                  autoComplete="off"
+                  spellCheck={false}
+                />
+              </div>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={openPosCamera}
+                title="Scan with camera"
+                className="shrink-0 border-amber-200 text-amber-700 hover:bg-amber-100"
+              >
+                <Camera className="h-4 w-4" />
+              </Button>
             </div>
           </div>
 
@@ -934,6 +998,48 @@ export default function POSPage() {
           onConfirm={handleConfirmPayment}
         />
       )}
+
+      {/* Camera scanner dialog */}
+      <Dialog open={showCamera} onOpenChange={open => { if (!open) { stopPosCamera(); setShowCamera(false) } }}>
+        <DialogContent className="max-w-sm p-4">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-base">
+              <Camera className="h-4 w-4 text-primary" />
+              Scan to Add
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="relative overflow-hidden rounded-lg bg-black aspect-video">
+              <video ref={videoRef} className="h-full w-full object-cover" muted playsInline />
+              {cameraActive && (
+                <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                  <div className="h-28 w-56 rounded border-2 border-white/70 shadow-[0_0_0_9999px_rgba(0,0,0,0.4)]" />
+                </div>
+              )}
+              {!cameraActive && !cameraErr && (
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <Loader2 className="h-8 w-8 animate-spin text-white/60" />
+                </div>
+              )}
+            </div>
+            {cameraActive && (
+              <p className="text-center text-xs text-muted-foreground">
+                Hold barcode steady inside the frame — item adds to cart automatically
+              </p>
+            )}
+            {cameraErr && (
+              <div className="flex items-start gap-2 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                <X className="mt-0.5 h-4 w-4 shrink-0" />
+                <span>{cameraErr}</span>
+              </div>
+            )}
+            <Button variant="outline" size="sm" className="w-full" onClick={() => { stopPosCamera(); setShowCamera(false) }}>
+              <CameraOff className="mr-2 h-4 w-4" />
+              Close
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {receipt && (
         <Receipt
