@@ -2,21 +2,20 @@
 
 import { useActionState, useState } from 'react'
 import Link from 'next/link'
-import { Eye, EyeOff } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
+import { motion } from 'framer-motion'
+import { Building2, User, Mail, Lock, Eye, EyeOff, Loader2 } from 'lucide-react'
 import { registerOrganization } from './actions'
 
 type State = { error?: string } | null
 
+/* ── Password strength ────────────────────────────────────────────────────── */
 function passwordStrength(pw: string): { score: number; label: string; color: string } {
   if (!pw) return { score: 0, label: '', color: '' }
   let score = 0
-  if (pw.length >= 8)  score++
-  if (pw.length >= 12) score++
-  if (/[A-Z]/.test(pw)) score++
-  if (/[0-9]/.test(pw)) score++
+  if (pw.length >= 8)           score++
+  if (pw.length >= 12)          score++
+  if (/[A-Z]/.test(pw))        score++
+  if (/[0-9]/.test(pw))        score++
   if (/[^A-Za-z0-9]/.test(pw)) score++
   if (score <= 1) return { score, label: 'Weak',   color: '#ef4444' }
   if (score <= 2) return { score, label: 'Fair',   color: '#f97316' }
@@ -24,79 +23,162 @@ function passwordStrength(pw: string): { score: number; label: string; color: st
   return              { score, label: 'Strong', color: '#22c55e' }
 }
 
-function PasswordInput({
-  id, name, placeholder, autoComplete, value, onChange, required,
+/* ── Shared glass primitives ──────────────────────────────────────────────── */
+function GlassInput({
+  icon: Icon,
+  type = 'text',
+  placeholder,
+  autoComplete,
+  name,
+  id,
+  required,
+  error,
+  rightSlot,
+  value,
+  onChange,
+  minLength,
 }: {
-  id: string
-  name: string
-  placeholder?: string
+  icon: React.ElementType
+  type?: string
+  placeholder: string
   autoComplete?: string
-  value: string
-  onChange: (v: string) => void
+  name: string
+  id?: string
   required?: boolean
+  error?: string
+  rightSlot?: React.ReactNode
+  value?: string
+  onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void
+  minLength?: number
 }) {
-  const [show, setShow] = useState(false)
   return (
-    <div className="relative">
-      <Input
-        id={id}
-        name={name}
-        type={show ? 'text' : 'password'}
-        placeholder={placeholder}
-        autoComplete={autoComplete}
-        value={value}
-        onChange={e => onChange(e.target.value)}
-        required={required}
-        className="pr-10"
-      />
-      <button
-        type="button"
-        onClick={() => setShow(v => !v)}
-        tabIndex={-1}
-        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-        aria-label={show ? 'Hide password' : 'Show password'}
-      >
-        {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-      </button>
+    <div className="space-y-1.5">
+      <div className="relative">
+        <Icon className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-white/25" />
+        <input
+          id={id ?? name}
+          name={name}
+          type={type}
+          placeholder={placeholder}
+          autoComplete={autoComplete}
+          required={required}
+          minLength={minLength}
+          value={value}
+          onChange={onChange}
+          className="h-12 w-full rounded-xl border border-white/10 bg-white/[0.06] pl-10 pr-11 text-sm text-white placeholder:text-white/20 backdrop-blur-sm transition-all duration-200 focus:border-blue-500/60 focus:bg-white/[0.09] focus:shadow-[0_0_0_3px_rgba(37,99,235,0.14)] focus:outline-none"
+        />
+        {rightSlot && (
+          <div className="absolute right-0 top-0 flex h-full items-center pr-3.5">
+            {rightSlot}
+          </div>
+        )}
+      </div>
+      {error && <p className="pl-1 text-xs text-red-400">{error}</p>}
     </div>
   )
 }
 
+function FieldLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <label className="block pl-0.5 text-[11px] font-semibold tracking-widest text-white/40 uppercase">
+      {children}
+    </label>
+  )
+}
+
+/* ── Password field with toggle ───────────────────────────────────────────── */
+function PasswordField({
+  name,
+  id,
+  placeholder,
+  autoComplete,
+  value,
+  onChange,
+}: {
+  name: string
+  id: string
+  placeholder?: string
+  autoComplete?: string
+  value: string
+  onChange: (v: string) => void
+}) {
+  const [show, setShow] = useState(false)
+  return (
+    <GlassInput
+      icon={Lock}
+      type={show ? 'text' : 'password'}
+      name={name}
+      id={id}
+      placeholder={placeholder ?? '••••••••'}
+      autoComplete={autoComplete}
+      required
+      value={value}
+      onChange={e => onChange(e.target.value)}
+      rightSlot={
+        <button
+          type="button"
+          onClick={() => setShow(v => !v)}
+          tabIndex={-1}
+          aria-label={show ? 'Hide password' : 'Show password'}
+          className="text-white/25 transition-colors hover:text-white/60"
+        >
+          {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+        </button>
+      }
+    />
+  )
+}
+
+/* ── Page ─────────────────────────────────────────────────────────────────── */
 export default function RegisterPage() {
-  const [password, setPassword]       = useState('')
-  const [confirmPw, setConfirmPw]     = useState('')
+  const [password,  setPassword]  = useState('')
+  const [confirmPw, setConfirmPw] = useState('')
+
   const [state, formAction, isPending] = useActionState<State, FormData>(
     async (_prev, formData) => {
-      const pw      = formData.get('password') as string
+      const pw      = formData.get('password')      as string
       const confirm = formData.get('confirmPassword') as string
-      if (pw.length < 8)     return { error: 'Password must be at least 8 characters.' }
-      if (pw !== confirm)    return { error: 'Passwords do not match.' }
+      if (pw.length < 8)  return { error: 'Password must be at least 8 characters.' }
+      if (pw !== confirm) return { error: 'Passwords do not match.' }
       return registerOrganization(formData)
     },
     null
   )
 
-  const strength = passwordStrength(password)
-  const segments = 4
+  const strength  = passwordStrength(password)
+  const pwMatch   = confirmPw.length > 0 && password === confirmPw
 
   return (
     <div>
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src="/logo.svg" alt="MedLink" className="mx-auto mb-7 h-12 w-auto" />
+      {/* ── Glass card ──────────────────────────────────────────────────── */}
+      <div className="rounded-[26px] border border-white/[0.09] bg-white/[0.04] p-8 shadow-[0_30px_70px_rgba(0,0,0,0.55),inset_0_1px_0_rgba(255,255,255,0.09),inset_0_-1px_0_rgba(0,0,0,0.2)] backdrop-blur-[48px]">
 
-      <div className="rounded-xl border bg-card p-8 shadow-sm">
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-foreground">Create your pharmacy</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Set up MedLink Cloud for your organization
+        {/* Logo */}
+        <div className="mb-7 flex flex-col items-center gap-2.5">
+          <div className="relative">
+            <div className="auth-glow-breathe absolute -inset-3 rounded-full bg-blue-500/15 blur-xl" />
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/logo.svg" alt="MedLink" className="relative h-10 w-auto" />
+          </div>
+          <span className="text-[10px] font-semibold tracking-[0.25em] text-white/35 uppercase">
+            MedLink Cloud
+          </span>
+        </div>
+
+        {/* Heading */}
+        <div className="mb-6 text-center">
+          <h1 className="text-[1.5rem] font-bold leading-tight text-white">Create your pharmacy</h1>
+          <p className="mt-1.5 text-sm text-white/35">
+            Set up MedLink Cloud for your organisation
           </p>
         </div>
 
-        <form action={formAction} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="organizationName">Pharmacy name</Label>
-            <Input
-              id="organizationName"
+        <form action={formAction} className="space-y-3.5" noValidate>
+          {/* Pharmacy name */}
+          <div className="space-y-1">
+            <FieldLabel>Pharmacy Name</FieldLabel>
+            <GlassInput
+              icon={Building2}
               name="organizationName"
               placeholder="Accra Central Pharmacy"
               required
@@ -104,10 +186,11 @@ export default function RegisterPage() {
             />
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="fullName">Your full name</Label>
-            <Input
-              id="fullName"
+          {/* Full name */}
+          <div className="space-y-1">
+            <FieldLabel>Your Full Name</FieldLabel>
+            <GlassInput
+              icon={User}
               name="fullName"
               placeholder="Kofi Mensah"
               autoComplete="name"
@@ -116,92 +199,118 @@ export default function RegisterPage() {
             />
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="email">Work email</Label>
-            <Input
-              id="email"
-              name="email"
+          {/* Email */}
+          <div className="space-y-1">
+            <FieldLabel>Work Email</FieldLabel>
+            <GlassInput
+              icon={Mail}
               type="email"
+              name="email"
               placeholder="kofi@pharmacyname.com"
               autoComplete="email"
               required
             />
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="password">Password</Label>
-            <PasswordInput
+          {/* Password */}
+          <div className="space-y-1">
+            <FieldLabel>Password</FieldLabel>
+            <PasswordField
               id="password"
               name="password"
               autoComplete="new-password"
               value={password}
               onChange={setPassword}
-              required
             />
             {/* Strength bar */}
             {password.length > 0 && (
-              <div className="space-y-1">
+              <div className="space-y-1 pt-0.5">
                 <div className="flex gap-1">
-                  {Array.from({ length: segments }).map((_, i) => (
+                  {Array.from({ length: 4 }).map((_, i) => (
                     <div
                       key={i}
                       className="h-1 flex-1 rounded-full transition-all duration-300"
-                      style={{
-                        background: i < strength.score
-                          ? strength.color
-                          : 'hsl(175 18% 87%)',
-                      }}
+                      style={{ background: i < strength.score ? strength.color : 'rgba(255,255,255,0.1)' }}
                     />
                   ))}
                 </div>
-                <p className="text-xs" style={{ color: strength.color }}>
+                <p className="pl-0.5 text-xs" style={{ color: strength.color }}>
                   {strength.label}
                   {strength.score < 3 && (
-                    <span className="ml-1 text-muted-foreground">
-                      — try adding numbers or symbols
-                    </span>
+                    <span className="ml-1 text-white/30">— try adding numbers or symbols</span>
                   )}
                 </p>
               </div>
             )}
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="confirmPassword">Confirm password</Label>
-            <PasswordInput
+          {/* Confirm password */}
+          <div className="space-y-1">
+            <FieldLabel>Confirm Password</FieldLabel>
+            <PasswordField
               id="confirmPassword"
               name="confirmPassword"
               autoComplete="new-password"
               value={confirmPw}
               onChange={setConfirmPw}
-              required
             />
-            {confirmPw.length > 0 && password !== confirmPw && (
-              <p className="text-xs text-destructive">Passwords do not match</p>
+            {confirmPw.length > 0 && !pwMatch && (
+              <p className="pl-0.5 text-xs text-red-400">Passwords do not match</p>
             )}
-            {confirmPw.length > 0 && password === confirmPw && (
-              <p className="text-xs text-green-600">Passwords match ✓</p>
+            {pwMatch && (
+              <p className="pl-0.5 text-xs text-emerald-400">Passwords match ✓</p>
             )}
           </div>
 
+          {/* Server error */}
           {state?.error && (
-            <div className="rounded-md bg-destructive/10 px-4 py-3 text-sm text-destructive">
+            <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400">
               {state.error}
             </div>
           )}
 
-          <Button type="submit" className="w-full" disabled={isPending}>
-            {isPending ? 'Creating account…' : 'Create account'}
-          </Button>
+          {/* CTA */}
+          <motion.button
+            type="submit"
+            disabled={isPending}
+            whileHover={!isPending ? { scale: 1.018 } : undefined}
+            whileTap={!isPending  ? { scale: 0.975 } : undefined}
+            className="auth-btn-shimmer relative mt-1 h-12 w-full overflow-hidden rounded-full bg-gradient-to-r from-blue-700 via-blue-600 to-blue-500 font-semibold text-white shadow-[0_0_28px_rgba(37,99,235,0.38)] transition-shadow duration-300 disabled:cursor-not-allowed disabled:opacity-60 hover:shadow-[0_0_48px_rgba(37,99,235,0.55)]"
+          >
+            <span className="relative flex items-center justify-center gap-2 text-sm">
+              {isPending ? (
+                <><Loader2 className="h-4 w-4 animate-spin" /> Creating account…</>
+              ) : 'Create Account'}
+            </span>
+          </motion.button>
         </form>
 
-        <p className="mt-6 text-center text-sm text-muted-foreground">
-          Already have an account?{' '}
-          <Link href="/login" className="font-medium text-primary hover:underline">
-            Sign in
-          </Link>
-        </p>
+        {/* Footer */}
+        <div className="mt-6 flex items-center gap-3">
+          <div className="h-px flex-1 bg-white/[0.08]" />
+          <span className="text-[11px] text-white/25">Already have an account?</span>
+          <div className="h-px flex-1 bg-white/[0.08]" />
+        </div>
+
+        <Link
+          href="/login"
+          className="mt-4 flex h-11 w-full items-center justify-center rounded-full border border-white/[0.09] bg-white/[0.04] text-sm font-medium text-white/60 transition-all duration-200 hover:border-white/[0.16] hover:bg-white/[0.08] hover:text-white"
+        >
+          Sign in instead
+        </Link>
       </div>
+
+      {/* Fine-print */}
+      <p className="mt-4 text-center text-[11px] text-white/20">
+        By creating an account you agree to MedLink&apos;s{' '}
+        <Link href="#" className="text-white/35 hover:text-white/50 underline-offset-2 hover:underline">
+          Terms of Service
+        </Link>{' '}
+        and{' '}
+        <Link href="#" className="text-white/35 hover:text-white/50 underline-offset-2 hover:underline">
+          Privacy Policy
+        </Link>
+      </p>
     </div>
   )
 }

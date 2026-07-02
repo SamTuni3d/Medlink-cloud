@@ -321,3 +321,57 @@ button:active:not(:disabled),
   }
   #receipt-print * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }
+
+/* ── Auth page: liquid glass keyframes ──────────────────────────────────────── */
+@keyframes auth-blob-1 {
+  0%,  100% { transform: translate(0px,   0px)   scale(1);    }
+  25%        { transform: translate(45px,  -65px) scale(1.09); }
+  50%        { transform: translate(-25px, 35px)  scale(0.93); }
+  75%        { transform: translate(55px,  25px)  scale(1.04); }
+}
+@keyframes auth-blob-2 {
+  0%,  100% { transform: translate(0px,   0px)   scale(1);    }
+  25%        { transform: translate(-55px, 35px)  scale(0.95); }
+  50%        { transform: translate(35px,  -45px) scale(1.07); }
+  75%        { transform: translate(-35px, -25px) scale(0.98); }
+}
+@keyframes auth-blob-3 {
+  0%,  100% { transform: translate(0px,  0px)   scale(1);    }
+  33%        { transform: translate(35px, 45px)  scale(1.06); }
+  66%        { transform: translate(-45px,-35px) scale(0.92); }
+}
+@keyframes auth-float {
+  0%,  100% { transform: translateY(0px);   }
+  50%        { transform: translateY(-18px); }
+}
+@keyframes auth-float-b {
+  0%,  100% { transform: translateY(0px);   }
+  50%        { transform: translateY(-12px); }
+}
+@keyframes auth-glow-breathe {
+  0%,  100% { opacity: 0.4; transform: scale(1);    }
+  50%        { opacity: 0.9; transform: scale(1.12); }
+}
+@keyframes auth-btn-shimmer {
+  0%   { transform: translateX(-150%); }
+  100% { transform: translateX(250%);  }
+}
+
+@layer utilities {
+  .auth-blob-1        { animation: auth-blob-1       22s ease-in-out infinite; }
+  .auth-blob-2        { animation: auth-blob-2       28s ease-in-out infinite; }
+  .auth-blob-3        { animation: auth-blob-3       18s ease-in-out infinite 3s; }
+  .auth-float         { animation: auth-float        5s  ease-in-out infinite; }
+  .auth-float-b       { animation: auth-float-b      7s  ease-in-out infinite 1.5s; }
+  .auth-glow-breathe  { animation: auth-glow-breathe 4s  ease-in-out infinite; }
+
+  /* Shimmer pseudo-element for buttons */
+  .auth-btn-shimmer::after {
+    content: '';
+    position: absolute;
+    inset-block: 0;
+    width: 40%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.18), transparent);
+    animation: auth-btn-shimmer 3.5s ease-in-out infinite;
+  }
+}
