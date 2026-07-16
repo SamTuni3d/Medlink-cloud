@@ -7,6 +7,10 @@ const withPWA = withPWAInit({
   aggressiveFrontEndNavCaching: true,
   reloadOnOnline: true,
   disable: process.env.NODE_ENV === 'development',
+  fallbacks: {
+    // Served by the service worker when a navigation request fails offline
+    document: '/offline.html',
+  },
   workboxOptions: { disableDevLogs: true },
 })
 
