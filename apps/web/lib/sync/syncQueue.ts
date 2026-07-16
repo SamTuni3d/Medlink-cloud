@@ -11,6 +11,12 @@ import { recordSale } from '@medlink/data-client'
 export async function processSyncQueue(client: SupabaseClient): Promise<void> {
   if (typeof navigator !== 'undefined' && !navigator.onLine) return
 
+  // Re-queue previously failed sales so they get another attempt
+  await db.pending_sales
+    .where('sync_status')
+    .equals('failed')
+    .modify({ sync_status: 'pending', sync_error: null })
+
   const pending = await db.pending_sales
     .where('sync_status')
     .equals('pending')

@@ -1,11 +1,14 @@
 {
+  "id": "/",
   "name": "MedLink Cloud",
   "short_name": "MedLink",
   "description": "Pharmacy management for modern healthcare",
   "start_url": "/dashboard",
+  "scope": "/",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#0F7938",
+  "display_override": ["window-controls-overlay", "standalone"],
+  "background_color": "#2e0657",
+  "theme_color": "#3b0764",
   "orientation": "portrait-primary",
   "categories": ["medical", "business"],
   "icons": [
@@ -13,13 +16,25 @@
       "src": "/icons/icon-192x192.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
     },
     {
       "src": "/icons/icon-512x512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ],
   "shortcuts": [
@@ -29,6 +44,14 @@
       "description": "Open the POS screen",
       "url": "/pos",
       "icons": [{ "src": "/icons/icon-192x192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Inventory",
+      "short_name": "Inventory",
+      "description": "View and manage stock",
+      "url": "/inventory",
+      "icons": [{ "src": "/icons/icon-192x192.png", "sizes": "192x192" }]
     }
-  ]
+  ],
+  "prefer_related_applications": false
 }

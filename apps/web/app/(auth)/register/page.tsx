@@ -22,7 +22,7 @@ function passwordStrength(pw: string): { score: number; label: string; color: st
   return              { score, label: 'Strong', color: '#a855f7' }
 }
 
-function FormField({
+function GlassInput({
   icon: Icon, type = 'text', name, id, placeholder, autoComplete,
   required, minLength, error, rightSlot, value, onChange,
 }: {
@@ -34,12 +34,12 @@ function FormField({
   return (
     <div>
       <div className="relative">
-        <Icon className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/25" />
+        <Icon className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/30" />
         <input
           id={id ?? name} name={name} type={type} placeholder={placeholder}
           autoComplete={autoComplete} required={required} minLength={minLength}
           value={value} onChange={onChange}
-          className="h-12 w-full rounded-xl border border-white/[0.08] bg-white/[0.05] pl-11 pr-11 text-sm text-white placeholder:text-white/25 transition-all duration-200 focus:border-purple-500/50 focus:bg-white/[0.08] focus:shadow-[0_0_0_3px_rgba(147,51,234,0.12)] focus:outline-none"
+          className="h-11 w-full rounded-xl bg-white/[0.07] pl-11 pr-11 text-sm text-white placeholder:text-white/30 transition-all duration-200 focus:bg-white/[0.10] focus:outline-none"
         />
         {rightSlot && (
           <div className="absolute right-0 top-0 flex h-full items-center pr-4">{rightSlot}</div>
@@ -58,7 +58,7 @@ function PasswordField({
 }) {
   const [show, setShow] = useState(false)
   return (
-    <FormField
+    <GlassInput
       icon={Lock} type={show ? 'text' : 'password'} name={name} id={id}
       placeholder={placeholder ?? '••••••••'} autoComplete={autoComplete}
       required value={value} onChange={e => onChange(e.target.value)}
@@ -92,28 +92,35 @@ export default function RegisterPage() {
   const pwMatch  = confirmPw.length > 0 && password === confirmPw
 
   return (
-    <div>
-      {/* Heading */}
-      <h1 className="text-[1.9rem] font-bold tracking-tight text-white">Create an account</h1>
-      <p className="mt-2 text-sm text-white/40">
+    <div
+      className="w-full rounded-2xl p-7"
+      style={{
+        background: 'rgba(20,5,50,0.55)',
+        backdropFilter: 'blur(24px)',
+        WebkitBackdropFilter: 'blur(24px)',
+        boxShadow: '0 8px 48px rgba(0,0,0,0.35)',
+      }}
+    >
+      <h1 className="text-2xl font-bold tracking-tight text-white">Create account</h1>
+      <p className="mt-1.5 text-xs text-white/35">
         Already have an account?{' '}
-        <Link href="/login" className="text-purple-400 transition-colors hover:text-purple-300">
-          Log in
+        <Link href="/login" className="text-purple-300 transition-colors hover:text-purple-200">
+          Sign in
         </Link>
       </p>
 
-      <form action={formAction} className="mt-8 space-y-3.5" noValidate>
-        <FormField
+      <form action={formAction} className="mt-5 space-y-3" noValidate>
+        <GlassInput
           icon={Building2} name="organizationName"
           placeholder="Pharmacy name" required minLength={2}
         />
 
-        <FormField
+        <GlassInput
           icon={User} name="fullName"
           placeholder="Your full name" autoComplete="name" required minLength={2}
         />
 
-        <FormField
+        <GlassInput
           icon={Mail} type="email" name="email"
           placeholder="Work email" autoComplete="email" required
         />
@@ -166,7 +173,13 @@ export default function RegisterPage() {
           type="submit" disabled={isPending}
           whileHover={!isPending ? { scale: 1.016 } : undefined}
           whileTap={!isPending  ? { scale: 0.978 } : undefined}
-          className="auth-btn-shimmer relative mt-1 h-12 w-full overflow-hidden rounded-xl bg-purple-600 font-semibold text-white shadow-[0_0_28px_rgba(147,51,234,0.3)] transition-all duration-300 disabled:opacity-60 hover:bg-purple-500 hover:shadow-[0_0_44px_rgba(147,51,234,0.5)]"
+          className="auth-btn-shimmer relative mt-1 h-11 w-full overflow-hidden rounded-xl font-semibold text-white shadow-lg transition-all duration-300 disabled:opacity-60"
+          style={{
+            background: isPending
+              ? 'linear-gradient(90deg,#c2410c,#dc2626)'
+              : 'linear-gradient(90deg,#f97316,#ef4444)',
+            boxShadow: '0 4px 24px rgba(249,115,22,0.35)',
+          }}
         >
           <span className="relative flex items-center justify-center gap-2 text-sm">
             {isPending
@@ -176,12 +189,12 @@ export default function RegisterPage() {
         </motion.button>
       </form>
 
-      <p className="mt-5 text-center text-xs text-white/20">
-        By creating an account you agree to MedLink&apos;s{' '}
+      <p className="mt-4 text-center text-[11px] text-white/20">
+        By creating an account you agree to our{' '}
         <Link href="#" className="text-white/35 underline-offset-2 hover:text-white/55 hover:underline">
-          Terms of Service
+          Terms
         </Link>{' '}
-        and{' '}
+        &{' '}
         <Link href="#" className="text-white/35 underline-offset-2 hover:text-white/55 hover:underline">
           Privacy Policy
         </Link>

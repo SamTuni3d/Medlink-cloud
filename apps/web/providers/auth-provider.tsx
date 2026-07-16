@@ -41,11 +41,12 @@ async function resolveOrgId(
   supabase: ReturnType<typeof createClient>,
   session: Session | null
 ): Promise<string | null> {
-  // Fast path: org_id is already baked into the JWT metadata
-  const metaOrgId = session?.user?.user_metadata?.organization_id as string | undefined
-  if (metaOrgId) return metaOrgId
+  // Fast path: org_id is baked into app_metadata (admin-only, cannot be forged by users).
+  // Older accounts may still have it in user_metadata; the fallback DB query corrects this.
+  const appOrgId = session?.user?.app_metadata?.organization_id as string | undefined
+  if (appOrgId) return appOrgId
 
-  // Fallback: metadata missing (old account / registration glitch) — query the DB
+  // Fallback: query the authoritative users table
   const uid = session?.user?.id
   if (!uid) return null
 
@@ -55,27 +56,15 @@ async function resolveOrgId(
     .eq('id', uid)
     .single()
 
-  const orgId = (data as { organization_id: string | null } | null)?.organization_id ?? null
-
-  // If found, also patch user_metadata so next load is instant
-  if (orgId) {
-    void supabase.auth.updateUser({
-      data: {
-        ...session?.user?.user_metadata,
-        organization_id: orgId,
-      },
-    })
-  }
-
-  return orgId
+  return (data as { organization_id: string | null } | null)?.organization_id ?? null
 }
 
 async function resolveRoles(
   supabase: ReturnType<typeof createClient>,
   user: User | null
 ): Promise<RoleName[]> {
-  // Fast path: roles are in metadata
-  const metaRoles = user?.user_metadata?.roles as RoleName[] | undefined
+  // Fast path: roles are in app_metadata (admin-only writable — cannot be forged by users).
+  const metaRoles = user?.app_metadata?.roles as RoleName[] | undefined
   if (metaRoles?.length) return metaRoles
 
   if (!user?.id) return []

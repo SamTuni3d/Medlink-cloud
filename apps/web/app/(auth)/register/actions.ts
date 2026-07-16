@@ -1,8 +1,11 @@
 'use server'
 
 import { redirect } from 'next/navigation'
+import { headers } from 'next/headers'
+import { z } from 'zod'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
+import { checkRateLimit } from '@/lib/rate-limit'
 import {
   createOrganization,
   createBranch,
@@ -11,20 +14,43 @@ import {
   assignUserRole,
 } from '@medlink/data-client'
 
+const RegisterSchema = z.object({
+  organizationName: z.string().min(2).max(120).trim(),
+  fullName:         z.string().min(2).max(120).trim(),
+  email:            z.string().email().max(254).toLowerCase().trim(),
+  password:         z.string().min(8).max(512),
+})
+
 export async function registerOrganization(formData: FormData) {
-  const organizationName = formData.get('organizationName') as string
-  const fullName = formData.get('fullName') as string
-  const email = formData.get('email') as string
-  const password = formData.get('password') as string
+  const headersList = await headers()
+  const ip = headersList.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown'
+
+  // Tighter limit for registration — 5 attempts per 15 min per IP
+  if (!checkRateLimit(`register:${ip}`, 5)) {
+    return { error: 'Too many registration attempts. Please wait and try again.' }
+  }
+
+  const parsed = RegisterSchema.safeParse({
+    organizationName: formData.get('organizationName'),
+    fullName:         formData.get('fullName'),
+    email:            formData.get('email'),
+    password:         formData.get('password'),
+  })
+  if (!parsed.success) {
+    const first = parsed.error.issues[0]
+    return { error: first?.message ?? 'Invalid registration details.' }
+  }
+
+  const { organizationName, fullName, email, password } = parsed.data
 
   let admin: ReturnType<typeof createAdminClient>
   try {
     admin = createAdminClient()
-  } catch (e) {
-    return { error: e instanceof Error ? e.message : 'Server configuration error' }
+  } catch {
+    return { error: 'Server configuration error. Please contact support.' }
   }
 
-  // 1. Create the auth user (auto-confirmed — no email verification required for local/beta)
+  // 1. Create auth user (auto-confirm for beta; add email verification when ready)
   const { data: authData, error: authError } = await admin.auth.admin.createUser({
     email,
     password,
@@ -33,81 +59,85 @@ export async function registerOrganization(formData: FormData) {
   })
 
   if (authError || !authData.user) {
-    return { error: authError?.message ?? 'Failed to create account' }
+    // Map common Supabase errors to safe client messages
+    const msg = authError?.message?.toLowerCase() ?? ''
+    if (msg.includes('already registered') || msg.includes('already exists') || msg.includes('duplicate')) {
+      return { error: 'An account with this email already exists.' }
+    }
+    return { error: 'Failed to create account. Please try again.' }
   }
 
   const authUserId = authData.user.id
 
-  // 2. Create the organization row
+  // 2. Create organization
   const orgResult = await createOrganization(admin, {
     name: organizationName,
     country: 'GH',
     currency_code: 'GHS',
   })
-
   if (!orgResult.ok) {
     await admin.auth.admin.deleteUser(authUserId)
-    return { error: orgResult.error.message }
+    return { error: 'Failed to set up your organization. Please try again.' }
   }
-
   const org = orgResult.data
 
-  // 3. Create a default main branch for the organization
+  // 3. Create default main branch
   const branchResult = await createBranch(admin, {
     organization_id: org.id,
     name: `${organizationName} — Main Branch`,
   })
-
   if (!branchResult.ok) {
     await admin.auth.admin.deleteUser(authUserId)
-    return { error: branchResult.error.message }
+    return { error: 'Failed to set up your branch. Please try again.' }
   }
 
-  // 5. Create the public.users row (links auth.users.id → org)
+  // 4. Create public.users row
   const userResult = await createUserRecord(admin, {
-    id: authUserId,
+    id:              authUserId,
     organization_id: org.id,
-    full_name: fullName,
+    full_name:       fullName,
     email,
   })
-
   if (!userResult.ok) {
     await admin.auth.admin.deleteUser(authUserId)
-    return { error: userResult.error.message }
+    return { error: 'Failed to set up your profile. Please try again.' }
   }
 
-  // 6. Resolve the org_admin role UUID and assign it
+  // 5. Assign org_admin role
   const roleResult = await getRoleIdByName(admin, 'org_admin')
   if (!roleResult.ok) {
     await admin.auth.admin.deleteUser(authUserId)
-    return { error: 'Role configuration error — contact support' }
+    return { error: 'Role configuration error. Please contact support.' }
   }
 
   const assignResult = await assignUserRole(admin, {
-    user_id: authUserId,
+    user_id:         authUserId,
     organization_id: org.id,
-    role_id: roleResult.data,
-    branch_id: null,
-    granted_by: authUserId,
+    role_id:         roleResult.data,
+    branch_id:       null,
+    granted_by:      authUserId,
   })
-
   if (!assignResult.ok) {
     await admin.auth.admin.deleteUser(authUserId)
-    return { error: assignResult.error.message }
+    return { error: 'Failed to assign permissions. Please try again.' }
   }
 
-  // 7. Embed org_id and roles in user_metadata so useAuth() can read them instantly
+  // 6. Embed org_id + role in app_metadata (admin-only writable — users cannot forge this).
+  //    useAuth() reads app_metadata on the fast path; user_metadata is user-writable so we
+  //    never store authorization claims there.
   await admin.auth.admin.updateUserById(authUserId, {
+    app_metadata: {
+      organization_id: org.id,
+      roles:           ['org_admin'],
+    },
     user_metadata: {
       full_name: fullName,
-      organization_id: org.id,
-      roles: ['org_admin'],
     },
   })
 
-  // 8. Auto-sign-in so the user lands on the dashboard immediately
+  // 7. Auto sign-in
   const serverClient = await createClient()
   await serverClient.auth.signInWithPassword({ email, password })
 
-  redirect('/dashboard')
+  redirect('/onboarding')
 }

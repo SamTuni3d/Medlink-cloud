@@ -1,6 +1,8 @@
 import { Sidebar } from '@/components/layout/sidebar'
 import { Topbar } from '@/components/layout/topbar'
 import { PageTransition } from '@/components/ui/page-transition'
+import { OfflineBanner } from '@/components/pwa/offline-banner'
+import { InstallPrompt } from '@/components/pwa/install-prompt'
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -8,6 +10,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <Sidebar />
       <div className="app-main flex flex-1 flex-col overflow-hidden">
         <Topbar />
+        <InstallPrompt />
+        <OfflineBanner />
         <main className="flex-1 overflow-y-auto p-3 sm:p-4 md:p-6 lg:p-8">
           <PageTransition>{children}</PageTransition>
         </main>

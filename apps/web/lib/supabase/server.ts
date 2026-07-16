@@ -15,7 +15,14 @@ export async function createClient() {
         setAll(cookiesToSet) {
           try {
             cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
+              cookieStore.set(name, value, {
+                ...options,
+                httpOnly: true,
+                secure:   process.env.NODE_ENV === 'production',
+                sameSite: 'lax',
+                // Supabase renews the session before expiry; 7 days is the outer bound
+                maxAge:   options?.maxAge ?? 60 * 60 * 24 * 7,
+              })
             )
           } catch {
             // Called from a Server Component — cookie mutation is a no-op here.

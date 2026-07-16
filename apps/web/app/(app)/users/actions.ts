@@ -92,9 +92,10 @@ export async function inviteStaffAction(
     return { ok: false, error: assignResult.error }
   }
 
-  // 4. Embed role in user_metadata so useAuth() can read it on first login
+  // 4. Embed role in app_metadata (admin-only writable — cannot be forged by the invited user).
   await admin.auth.admin.updateUserById(newUserId, {
-    user_metadata: { full_name: fullName, organization_id: organizationId, roles: [role] },
+    app_metadata:  { organization_id: organizationId, roles: [role] },
+    user_metadata: { full_name: fullName },
   })
 
   revalidatePath('/users')

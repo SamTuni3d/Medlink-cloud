@@ -16,9 +16,18 @@ async function assertSuperAdmin(): Promise<{ userId: string } | null> {
   const { data: { user } } = await client.auth.getUser()
   if (!user) return null
 
-  const role = user.user_metadata?.roles as string[] | string | undefined
-  const roles = Array.isArray(role) ? role : [role]
-  if (!roles.includes('super_admin')) return null
+  // SECURITY: user_metadata is user-writable — never trust it for authorization.
+  // Validate against the authoritative user_roles table in the database.
+  const { data } = await client
+    .from('user_roles')
+    .select('roles(name)')
+    .eq('user_id', user.id)
+
+  const roleNames = (data as { roles: { name: string } | null }[] | null)
+    ?.map(r => r.roles?.name)
+    .filter(Boolean) ?? []
+
+  if (!roleNames.includes('super_admin')) return null
 
   return { userId: user.id }
 }
