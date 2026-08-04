@@ -27,19 +27,10 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
         </svg>
 
         {/* Logo */}
-        <div className="relative z-10 flex items-center gap-2.5 px-8 pt-8">
-          <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-[10px] border border-white/40 bg-white/20">
-            <svg viewBox="0 0 24 24" fill="none" width="19" height="19">
-              <path d="M12 3v18M3 12h18" stroke="white" strokeWidth="2.5" strokeLinecap="round" />
-            </svg>
-          </div>
-          <div>
-            <span className="block text-[1.05rem] font-extrabold leading-none tracking-tight text-white">
-              MedLink
-            </span>
-            <span className="mt-0.5 block text-[0.44rem] font-bold uppercase tracking-widest text-white/55">
-              Pharmacy Management
-            </span>
+        <div className="relative z-10 px-8 pt-8">
+          <div className="inline-flex items-center rounded-2xl bg-white/95 px-4 py-2.5 shadow-sm">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/logo.svg" alt="MedLink" className="h-10 w-auto" />
           </div>
         </div>
 
@@ -66,13 +57,9 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
       {/* ── Right: form panel ───────────────────────────────────────────── */}
       <div className="flex flex-1 flex-col items-center justify-center bg-white px-6 py-12 sm:px-10">
         {/* Mobile logo */}
-        <div className="mb-8 flex items-center gap-2 lg:hidden">
-          <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-[8px]" style={{ background: '#58111A' }}>
-            <svg viewBox="0 0 24 24" fill="none" width="17" height="17">
-              <path d="M12 3v18M3 12h18" stroke="white" strokeWidth="2.5" strokeLinecap="round" />
-            </svg>
-          </div>
-          <span className="text-lg font-extrabold tracking-tight text-gray-900">MedLink</span>
+        <div className="mb-8 lg:hidden">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo.svg" alt="MedLink" className="h-10 w-auto" />
         </div>
         <div className="w-full max-w-[340px]">{children}</div>
       </div>
