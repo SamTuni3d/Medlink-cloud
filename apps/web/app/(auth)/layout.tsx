@@ -1,89 +1,82 @@
-'use client'
+import type { ReactNode } from 'react'
 
-import { useState, useEffect } from 'react'
-import Link from 'next/link'
-import { FloatingBackground } from '@/components/auth/floating-background'
-
-const SLIDES = [
-  { headline: 'Welcome!',           sub: 'Ghana\'s most connected pharmacy platform.' },
-  { headline: 'Built for speed.',   sub: 'Real-time inventory, offline POS, instant reports.' },
-  { headline: 'Trusted & secure.',  sub: 'Enterprise-grade security for every pharmacy.' },
-]
-
-export default function AuthLayout({ children }: { children: React.ReactNode }) {
-  const [idx, setIdx] = useState(0)
-
-  useEffect(() => {
-    const t = setInterval(() => setIdx(i => (i + 1) % SLIDES.length), 4500)
-    return () => clearInterval(t)
-  }, [])
-
+export default function AuthLayout({ children }: { children: ReactNode }) {
   return (
-    /*
-     * Full-screen deep-purple base — the FloatingBackground is `absolute`
-     * so it fills only the left column; no overflow leaks to the right.
-     */
-    <div
-      className="dark flex min-h-svh w-full"
-      style={{ background: 'linear-gradient(135deg,#3b0764 0%,#4c1d95 40%,#2e0657 100%)' }}
-    >
-      {/* ── Left: branding panel ───────────────────────────────────────── */}
-      <div className="relative hidden w-[52%] flex-col overflow-hidden lg:flex">
-        <FloatingBackground />
+    <div className="flex min-h-svh w-full">
+
+      {/* ── Left: blue gradient branding panel ──────────────────────────── */}
+      <div
+        className="relative hidden w-[46%] overflow-hidden lg:flex lg:flex-col"
+        style={{ background: 'linear-gradient(150deg,#4a6cf7 0%,#6a8dff 45%,#8aaeff 100%)' }}
+      >
+        {/* Decorative shapes */}
+        <div className="pointer-events-none absolute -right-24 -top-20 h-80 w-80 rounded-full border-[48px] border-white/10" />
+        <div className="pointer-events-none absolute left-12 top-[200px] h-12 w-12 rounded-full bg-[#ff6b6b]" style={{ boxShadow: '0 8px 24px rgba(255,107,107,.4)' }} />
+        <div className="pointer-events-none absolute left-32 top-[160px] h-20 w-5 rounded-full bg-[#ffc542]" style={{ transform: 'rotate(-30deg)', boxShadow: '0 8px 24px rgba(255,197,66,.4)' }} />
+        <div className="pointer-events-none absolute left-40 top-[200px] h-16 w-4 rounded-full bg-[#ff8fab]" style={{ transform: 'rotate(-30deg)' }} />
+        <div className="pointer-events-none absolute -bottom-20 -right-14 h-72 w-72 rounded-full bg-white/10" />
+        <div className="pointer-events-none absolute -left-7 bottom-28 h-20 w-20 rounded-full bg-[#2ed8b6] opacity-35" />
+        {/* Medical cross */}
+        <svg
+          className="pointer-events-none absolute opacity-10"
+          style={{ top: '50%', left: '50%', transform: 'translate(-40%, -44%)', width: 200, height: 200 }}
+          viewBox="0 0 200 200" fill="none"
+        >
+          <rect x="70" y="0" width="60" height="200" rx="12" fill="white" />
+          <rect x="0" y="70" width="200" height="60" rx="12" fill="white" />
+        </svg>
 
         {/* Logo */}
-        <div className="relative z-10 p-10 pb-0">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo.svg" alt="MedLink" className="h-8 w-auto" />
-          <div className="mt-4 h-0.5 w-8 rounded-full bg-white/40" />
+        <div className="relative z-10 flex items-center gap-2.5 px-8 pt-8">
+          <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-[10px] border border-white/40 bg-white/20">
+            <svg viewBox="0 0 24 24" fill="none" width="19" height="19">
+              <path d="M12 3v18M3 12h18" stroke="white" strokeWidth="2.5" strokeLinecap="round" />
+            </svg>
+          </div>
+          <div>
+            <span className="block text-[1.05rem] font-extrabold leading-none tracking-tight text-white">
+              MedLink
+            </span>
+            <span className="mt-0.5 block text-[0.44rem] font-bold uppercase tracking-widest text-white/55">
+              Pharmacy Management
+            </span>
+          </div>
         </div>
 
-        {/* Main copy */}
-        <div className="relative z-10 mt-auto p-10 pb-6">
-          <h1
-            key={idx}
-            className="text-6xl font-extrabold leading-tight tracking-tight text-white"
-          >
-            {SLIDES[idx]?.headline}
-          </h1>
-          <p className="mt-4 max-w-xs text-sm leading-relaxed text-white/50">
-            {SLIDES[idx]?.sub}
+        {/* Copy */}
+        <div className="relative z-10 flex-1 px-8 pt-8">
+          <h2 className="mb-3 text-[1.9rem] font-extrabold leading-tight tracking-tight text-white" style={{ textWrap: 'balance' } as React.CSSProperties}>
+            The Next Generation
+            <span className="mt-1 block text-[1.3rem] font-semibold text-white/65">
+              of Pharmacy Management
+            </span>
+          </h2>
+          <p className="max-w-[260px] text-[0.82rem] leading-relaxed text-white/65">
+            MedLink connects pharmacies, patients, and healthcare providers on
+            one secure platform. Smarter tools. Better care. Together.
           </p>
-
-          <Link
-            href="/register"
-            className="mt-8 inline-flex items-center gap-2 rounded-full px-6 py-2.5 text-sm font-semibold text-white shadow-lg transition-opacity hover:opacity-90"
-            style={{ background: 'linear-gradient(90deg,#f97316,#ef4444)' }}
-          >
-            Get started →
-          </Link>
         </div>
 
-        {/* Slide dots */}
-        <div className="relative z-10 flex items-center gap-2 px-10 pb-10">
-          {SLIDES.map((_, i) => (
-            <button
-              key={i}
-              onClick={() => setIdx(i)}
-              aria-label={`Slide ${i + 1}`}
-              className={`h-1.5 rounded-full transition-all duration-300 ${
-                i === idx ? 'w-8 bg-white/80' : 'w-4 bg-white/25 hover:bg-white/40'
-              }`}
-            />
-          ))}
+        {/* Copyright */}
+        <div className="relative z-10 px-8 pb-6 text-[0.6rem] font-medium text-white/38">
+          © 2025 MedLink Cloud. All rights reserved.
         </div>
       </div>
 
-      {/* ── Right: form panel ──────────────────────────────────────────── */}
-      <div className="flex flex-1 flex-col items-center justify-center px-6 py-14 sm:px-10"
-           style={{ background: 'rgba(18,4,48,0.55)', backdropFilter: 'blur(2px)' }}>
+      {/* ── Right: form panel ───────────────────────────────────────────── */}
+      <div className="flex flex-1 flex-col items-center justify-center bg-white px-6 py-12 sm:px-10">
         {/* Mobile logo */}
-        <div className="mb-10 lg:hidden">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo.svg" alt="MedLink" className="h-8 w-auto" />
+        <div className="mb-8 flex items-center gap-2 lg:hidden">
+          <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-[8px]" style={{ background: '#4a6cf7' }}>
+            <svg viewBox="0 0 24 24" fill="none" width="17" height="17">
+              <path d="M12 3v18M3 12h18" stroke="white" strokeWidth="2.5" strokeLinecap="round" />
+            </svg>
+          </div>
+          <span className="text-lg font-extrabold tracking-tight text-gray-900">MedLink</span>
         </div>
-        <div className="w-full max-w-[390px]">{children}</div>
+        <div className="w-full max-w-[340px]">{children}</div>
       </div>
+
     </div>
   )
 }

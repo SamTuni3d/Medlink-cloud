@@ -7,11 +7,6 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Eye, EyeOff, CheckCircle2 } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import {
-  Form, FormControl, FormField, FormItem, FormLabel, FormMessage,
-} from '@/components/ui/form'
 import { createClient } from '@/lib/supabase/client'
 
 const schema = z
@@ -30,6 +25,9 @@ const schema = z
 
 type FormValues = z.infer<typeof schema>
 
+const inputCls =
+  'w-full border-0 border-b border-gray-200 bg-transparent px-0 py-2 text-sm text-gray-900 placeholder:text-gray-300 focus:border-[#4a6cf7] focus:outline-none focus:ring-0 transition-colors'
+
 export default function ResetPasswordPage() {
   const [isPending, startTransition] = useTransition()
   const [done, setDone]             = useState(false)
@@ -37,7 +35,12 @@ export default function ResetPasswordPage() {
   const [showConfirm, setShowConfirm] = useState(false)
   const router = useRouter()
 
-  const form = useForm<FormValues>({
+  const {
+    register,
+    handleSubmit,
+    setError,
+    formState: { errors },
+  } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: { password: '', confirmPassword: '' },
   })
@@ -49,9 +52,9 @@ export default function ResetPasswordPage() {
       if (error) {
         const msg = error.message.toLowerCase()
         if (msg.includes('same password') || msg.includes('different password')) {
-          form.setError('password', { message: 'New password must be different from your old one.' })
+          setError('password', { message: 'New password must be different from your old one.' })
         } else {
-          form.setError('root', { message: 'Failed to update password. The reset link may have expired.' })
+          setError('root', { message: 'Failed to update password. The reset link may have expired.' })
         }
       } else {
         setDone(true)
@@ -62,20 +65,18 @@ export default function ResetPasswordPage() {
 
   if (done) {
     return (
-      <div className="rounded-xl border bg-card p-8 shadow-sm text-center">
-        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-green-100">
+      <div className="text-center">
+        <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-full bg-green-50">
           <CheckCircle2 className="h-7 w-7 text-green-600" />
         </div>
-        <h1 className="text-xl font-bold text-foreground">Password updated</h1>
-        <p className="mt-2 text-sm text-muted-foreground">
+        <h1 className="text-xl font-bold text-gray-900">Password updated</h1>
+        <p className="mt-2 text-sm text-gray-500">
           Your password has been changed successfully.
         </p>
-        <p className="mt-1 text-xs text-muted-foreground">
-          Redirecting you to the dashboard…
-        </p>
+        <p className="mt-1 text-xs text-gray-400">Redirecting you to the dashboard…</p>
         <Link
           href="/dashboard"
-          className="mt-5 inline-block text-sm font-medium text-primary hover:underline"
+          className="mt-5 inline-block text-sm font-semibold text-[#4a6cf7] hover:opacity-80"
         >
           Go to dashboard now
         </Link>
@@ -85,98 +86,89 @@ export default function ResetPasswordPage() {
 
   return (
     <div>
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src="/logo.svg" alt="MedLink" className="mx-auto mb-7 h-12 w-auto" />
+      <h1 className="mb-1 text-2xl font-bold text-gray-900">Set new password</h1>
+      <p className="mb-8 text-sm text-gray-400">
+        Choose a strong password for your account
+      </p>
 
-      <div className="rounded-xl border bg-card p-8 shadow-sm">
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-foreground">Set new password</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Choose a strong password for your account
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+        {/* New password */}
+        <div>
+          <label className="mb-1.5 block text-xs font-semibold text-[#4a6cf7]">
+            New password
+          </label>
+          <div className="relative">
+            <input
+              type={showPw ? 'text' : 'password'}
+              placeholder="Min. 8 characters"
+              autoComplete="new-password"
+              className={inputCls + ' pr-8'}
+              {...register('password')}
+            />
+            <button
+              type="button"
+              onClick={() => setShowPw(v => !v)}
+              tabIndex={-1}
+              className="absolute right-0 top-1/2 -translate-y-1/2 text-gray-300 transition-colors hover:text-gray-500"
+              aria-label={showPw ? 'Hide password' : 'Show password'}
+            >
+              {showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            </button>
+          </div>
+          <p className="mt-1 text-xs text-gray-400">
+            Min. 8 characters, one uppercase letter, one number
           </p>
+          {errors.password && (
+            <p className="mt-1 text-xs text-red-500">{errors.password.message}</p>
+          )}
         </div>
 
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <FormField
-              control={form.control}
-              name="password"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>New password</FormLabel>
-                  <FormControl>
-                    <div className="relative">
-                      <Input
-                        type={showPw ? 'text' : 'password'}
-                        autoComplete="new-password"
-                        className="pr-10"
-                        {...field}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowPw(v => !v)}
-                        tabIndex={-1}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                        aria-label={showPw ? 'Hide password' : 'Show password'}
-                      >
-                        {showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                      </button>
-                    </div>
-                  </FormControl>
-                  <p className="text-xs text-muted-foreground">
-                    Min. 8 characters, one uppercase letter, one number
-                  </p>
-                  <FormMessage />
-                </FormItem>
-              )}
+        {/* Confirm password */}
+        <div>
+          <label className="mb-1.5 block text-xs font-semibold text-[#4a6cf7]">
+            Confirm new password
+          </label>
+          <div className="relative">
+            <input
+              type={showConfirm ? 'text' : 'password'}
+              placeholder="Re-enter your password"
+              autoComplete="new-password"
+              className={inputCls + ' pr-8'}
+              {...register('confirmPassword')}
             />
+            <button
+              type="button"
+              onClick={() => setShowConfirm(v => !v)}
+              tabIndex={-1}
+              className="absolute right-0 top-1/2 -translate-y-1/2 text-gray-300 transition-colors hover:text-gray-500"
+              aria-label={showConfirm ? 'Hide password' : 'Show password'}
+            >
+              {showConfirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            </button>
+          </div>
+          {errors.confirmPassword && (
+            <p className="mt-1 text-xs text-red-500">{errors.confirmPassword.message}</p>
+          )}
+        </div>
 
-            <FormField
-              control={form.control}
-              name="confirmPassword"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Confirm new password</FormLabel>
-                  <FormControl>
-                    <div className="relative">
-                      <Input
-                        type={showConfirm ? 'text' : 'password'}
-                        autoComplete="new-password"
-                        className="pr-10"
-                        {...field}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowConfirm(v => !v)}
-                        tabIndex={-1}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                        aria-label={showConfirm ? 'Hide password' : 'Show password'}
-                      >
-                        {showConfirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                      </button>
-                    </div>
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+        {errors.root && (
+          <div className="rounded-lg border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-600">
+            {errors.root.message}{' '}
+            <Link href="/forgot-password" className="underline">
+              Request a new link.
+            </Link>
+          </div>
+        )}
 
-            {form.formState.errors.root && (
-              <div className="rounded-md bg-destructive/10 px-4 py-3 text-sm text-destructive">
-                {form.formState.errors.root.message}
-                {' '}
-                <Link href="/forgot-password" className="underline">
-                  Request a new link.
-                </Link>
-              </div>
-            )}
-
-            <Button type="submit" className="w-full" disabled={isPending}>
-              {isPending ? 'Updating…' : 'Update password'}
-            </Button>
-          </form>
-        </Form>
-      </div>
+        <button
+          type="submit"
+          disabled={isPending}
+          className="w-full rounded-xl py-3 text-sm font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-60"
+          style={{ background: '#4a6cf7', boxShadow: '0 4px 18px rgba(74,108,247,.35)' }}
+        >
+          {isPending ? 'Updating…' : 'Update password'}
+        </button>
+      </form>
     </div>
   )
 }
