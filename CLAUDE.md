@@ -274,6 +274,8 @@ Navigation and route guards must check the user's role from the `useAuth()` hook
 | `sync_cursors` | Per-device, per-table cursor for offline sync protocol |
 | `notifications` | System-generated alerts (expiry warnings, reorder alerts) |
 | `duty_sessions` | Shift tracking — who clocked in/out at a branch, and when |
+| `prescriptions` | Patient prescriptions with status lifecycle (pending → dispensed/cancelled/expired) |
+| `prescription_items` | Line items per prescription — medication, qty prescribed vs dispensed |
 
 ---
 

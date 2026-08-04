@@ -1,9 +1,9 @@
 -- ============================================================
--- Migration 021: Prescriptions
+-- Migration 20260804192929: Prescriptions
 -- Tracks patient prescriptions and their dispensing status.
+-- Status lifecycle: pending → (partially_dispensed)* → dispensed | cancelled | expired
 -- ============================================================
 
--- Status lifecycle: pending → (partially_dispensed)* → dispensed | cancelled | expired
 CREATE TYPE prescription_status AS ENUM (
   'pending',
   'partially_dispensed',
@@ -26,7 +26,7 @@ CREATE TABLE prescriptions (
   id                      uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
   organization_id         uuid        NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
   branch_id               uuid        NOT NULL REFERENCES branches(id) ON DELETE CASCADE,
-  rx_number               text        NOT NULL,  -- e.g. "RX-2026-00001"
+  rx_number               text        NOT NULL,
   patient_name            text        NOT NULL,
   patient_dob             date,
   patient_phone           text,
@@ -45,24 +45,22 @@ CREATE TABLE prescriptions (
   updated_at              timestamptz NOT NULL DEFAULT now()
 );
 
--- Rx number must be unique within an organization
 CREATE UNIQUE INDEX idx_prescriptions_rx_number ON prescriptions(organization_id, rx_number);
-
-CREATE INDEX idx_prescriptions_org    ON prescriptions(organization_id);
-CREATE INDEX idx_prescriptions_branch ON prescriptions(branch_id);
-CREATE INDEX idx_prescriptions_status ON prescriptions(status);
+CREATE INDEX idx_prescriptions_org     ON prescriptions(organization_id);
+CREATE INDEX idx_prescriptions_branch  ON prescriptions(branch_id);
+CREATE INDEX idx_prescriptions_status  ON prescriptions(status);
 CREATE INDEX idx_prescriptions_created ON prescriptions(created_at DESC);
 
 ALTER TABLE prescriptions ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "tenant_select" ON prescriptions
-  FOR SELECT USING (organization_id = get_user_organization_id());
+  FOR SELECT USING (organization_id = (SELECT get_user_organization_id()));
 
 CREATE POLICY "tenant_insert" ON prescriptions
-  FOR INSERT WITH CHECK (organization_id = get_user_organization_id());
+  FOR INSERT WITH CHECK (organization_id = (SELECT get_user_organization_id()));
 
 CREATE POLICY "tenant_update" ON prescriptions
-  FOR UPDATE USING (organization_id = get_user_organization_id());
+  FOR UPDATE USING (organization_id = (SELECT get_user_organization_id()));
 
 -- ---------------------------------------------------------------------------
 -- prescription_items
@@ -72,13 +70,13 @@ CREATE TABLE prescription_items (
   prescription_id         uuid        NOT NULL REFERENCES prescriptions(id) ON DELETE CASCADE,
   organization_id         uuid        NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
   medication_id           uuid        NOT NULL REFERENCES medications_master(id),
-  medication_name         text        NOT NULL,  -- denormalized for historical accuracy
+  medication_name         text        NOT NULL,
   quantity_prescribed     integer     NOT NULL CHECK (quantity_prescribed > 0),
   quantity_dispensed      integer     NOT NULL DEFAULT 0 CHECK (quantity_dispensed >= 0),
   dosage_instructions     text,
   duration_days           integer,
   status                  prescription_item_status NOT NULL DEFAULT 'pending',
-  sale_id                 uuid,  -- linked sale when dispensed (FK added once sales table exists)
+  sale_id                 uuid        REFERENCES sales(id),
   created_at              timestamptz NOT NULL DEFAULT now(),
   updated_at              timestamptz NOT NULL DEFAULT now()
 );
@@ -90,29 +88,24 @@ CREATE INDEX idx_prescription_items_medication   ON prescription_items(medicatio
 ALTER TABLE prescription_items ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "tenant_select" ON prescription_items
-  FOR SELECT USING (organization_id = get_user_organization_id());
+  FOR SELECT USING (organization_id = (SELECT get_user_organization_id()));
 
 CREATE POLICY "tenant_insert" ON prescription_items
-  FOR INSERT WITH CHECK (organization_id = get_user_organization_id());
+  FOR INSERT WITH CHECK (organization_id = (SELECT get_user_organization_id()));
 
 CREATE POLICY "tenant_update" ON prescription_items
-  FOR UPDATE USING (organization_id = get_user_organization_id());
+  FOR UPDATE USING (organization_id = (SELECT get_user_organization_id()));
 
 -- ---------------------------------------------------------------------------
--- Auto-update updated_at
+-- updated_at triggers
 -- ---------------------------------------------------------------------------
-CREATE OR REPLACE FUNCTION trg_set_updated_at()
-RETURNS TRIGGER LANGUAGE plpgsql AS $$
-BEGIN NEW.updated_at = now(); RETURN NEW; END;
-$$;
-
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM pg_trigger WHERE tgname = 'set_prescriptions_updated_at'
   ) THEN
     CREATE TRIGGER set_prescriptions_updated_at
       BEFORE UPDATE ON prescriptions
-      FOR EACH ROW EXECUTE FUNCTION trg_set_updated_at();
+      FOR EACH ROW EXECUTE FUNCTION fn_update_updated_at();
   END IF;
 END $$;
 
@@ -122,16 +115,18 @@ DO $$ BEGIN
   ) THEN
     CREATE TRIGGER set_prescription_items_updated_at
       BEFORE UPDATE ON prescription_items
-      FOR EACH ROW EXECUTE FUNCTION trg_set_updated_at();
+      FOR EACH ROW EXECUTE FUNCTION fn_update_updated_at();
   END IF;
 END $$;
 
 -- ---------------------------------------------------------------------------
--- RPC: fn_next_rx_number — generates the next sequential Rx number for an org
+-- RPC: fn_next_rx_number — sequential Rx number per org per year
 -- ---------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION fn_next_rx_number(p_organization_id uuid)
 RETURNS text
-LANGUAGE plpgsql SECURITY DEFINER AS $$
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = public
+AS $$
 DECLARE
   v_year    text;
   v_seq     integer;
@@ -150,3 +145,7 @@ BEGIN
   RETURN v_number;
 END;
 $$;
+
+REVOKE EXECUTE ON FUNCTION fn_next_rx_number(uuid) FROM PUBLIC;
+GRANT  EXECUTE ON FUNCTION fn_next_rx_number(uuid) TO authenticated;
+GRANT  EXECUTE ON FUNCTION fn_next_rx_number(uuid) TO service_role;
