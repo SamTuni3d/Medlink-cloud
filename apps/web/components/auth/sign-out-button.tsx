@@ -14,8 +14,8 @@ export function SignOutButton({ iconOnly = false }: SignOutButtonProps) {
   const [isPending, startTransition] = useTransition()
 
   function handleSignOut() {
-    startTransition(() => {
-      void signOutAction()
+    startTransition(async () => {
+      await signOutAction()
     })
   }
 

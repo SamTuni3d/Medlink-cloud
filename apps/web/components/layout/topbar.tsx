@@ -14,8 +14,8 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { MobileNav } from './mobile-nav'
 import { useAuth } from '@/providers/auth-provider'
 import { useBranch } from '@/hooks/useBranch'
-import { createClient } from '@/lib/supabase/client'
-import { useRouter } from 'next/navigation'
+import { useTransition } from 'react'
+import { signOutAction } from '@/app/(app)/actions'
 
 const PAGE_TITLES: Record<string, string> = {
   '/dashboard':    'Dashboard',
@@ -95,7 +95,7 @@ function BranchSelector() {
 export function Topbar() {
   const { user, primaryRole } = useAuth()
   const pathname = usePathname()
-  const router = useRouter()
+  const [isPending, startTransition] = useTransition()
 
   const pageTitle = Object.entries(PAGE_TITLES).find(([key]) =>
     pathname === key || pathname.startsWith(key + '/')
@@ -111,9 +111,8 @@ export function Topbar() {
 
   const roleLabel = primaryRole?.replace(/_/g, ' ') ?? ''
 
-  async function signOut() {
-    await createClient().auth.signOut()
-    router.push('/login')
+  function handleSignOut() {
+    startTransition(async () => { await signOutAction() })
   }
 
   return (
@@ -182,7 +181,7 @@ export function Topbar() {
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => void signOut()} className="text-red-600 focus:text-red-600">
+            <DropdownMenuItem onClick={handleSignOut} disabled={isPending} className="text-red-600 focus:text-red-600">
               <LogOut className="mr-2 h-4 w-4" />
               Sign out
             </DropdownMenuItem>

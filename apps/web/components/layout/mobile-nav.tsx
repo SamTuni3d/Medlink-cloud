@@ -6,8 +6,8 @@ import { usePathname } from 'next/navigation'
 import { SidebarNav } from './sidebar'
 import { useAuth } from '@/providers/auth-provider'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
-import { createClient } from '@/lib/supabase/client'
-import { useRouter } from 'next/navigation'
+import { useTransition } from 'react'
+import { signOutAction } from '@/app/(app)/actions'
 import { LogOut } from 'lucide-react'
 
 export function MobileNav() {
@@ -15,7 +15,7 @@ export function MobileNav() {
   const [closing, setClosing]   = useState(false)
   const pathname                = usePathname()
   const { user, primaryRole }   = useAuth()
-  const router                  = useRouter()
+  const [isPending, startTransition] = useTransition()
   const touchStartX             = useRef<number | null>(null)
 
   // Close on route change
@@ -50,9 +50,8 @@ export function MobileNav() {
   const initials = fullName.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)
   const roleLabel = primaryRole?.replace(/_/g, ' ') ?? ''
 
-  async function signOut() {
-    await createClient().auth.signOut()
-    router.push('/login')
+  function handleSignOut() {
+    startTransition(async () => { await signOutAction() })
   }
 
   return (
@@ -148,7 +147,8 @@ export function MobileNav() {
                   </p>
                 </div>
                 <button
-                  onClick={() => void signOut()}
+                  onClick={handleSignOut}
+                  disabled={isPending}
                   title="Sign out"
                   className="rounded-lg p-1.5 transition-colors"
                   style={{ color: 'rgba(255,255,255,0.3)' }}

@@ -10,8 +10,9 @@ import {
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/providers/auth-provider'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { useTransition } from 'react'
+import { signOutAction } from '@/app/(app)/actions'
 import { createClient } from '@/lib/supabase/client'
-import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { getPendingSuggestionsCount } from '@medlink/data-client'
 import type { RoleName } from '@medlink/data-client'
@@ -216,7 +217,7 @@ export function SidebarNav({ onNavigate }: SidebarNavProps) {
 
 function SidebarUserFooter() {
   const { user, primaryRole } = useAuth()
-  const router = useRouter()
+  const [isPending, startTransition] = useTransition()
 
   const fullName = (user?.user_metadata?.full_name as string) ?? user?.email ?? 'User'
   const initials = fullName
@@ -228,9 +229,8 @@ function SidebarUserFooter() {
 
   const roleLabel = primaryRole?.replace(/_/g, ' ') ?? ''
 
-  async function signOut() {
-    await createClient().auth.signOut()
-    router.push('/login')
+  function handleSignOut() {
+    startTransition(async () => { await signOutAction() })
   }
 
   return (
@@ -246,9 +246,10 @@ function SidebarUserFooter() {
           <p className="truncate text-xs capitalize" style={{ color: '#C4A44C', opacity: 0.75 }}>{roleLabel}</p>
         </div>
         <button
-          onClick={() => void signOut()}
+          onClick={handleSignOut}
+          disabled={isPending}
           title="Sign out"
-          className="rounded-md p-1.5 text-white/30 hover:bg-white/10 hover:text-white/80 transition-colors"
+          className="rounded-md p-1.5 text-white/30 hover:bg-white/10 hover:text-white/80 transition-colors disabled:opacity-40"
         >
           <LogOut className="h-4 w-4" />
         </button>
