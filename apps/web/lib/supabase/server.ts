@@ -20,13 +20,12 @@ export async function createClient() {
                 httpOnly: true,
                 secure:   process.env.NODE_ENV === 'production',
                 sameSite: 'lax',
-                // Supabase renews the session before expiry; 7 days is the outer bound
+                path:     '/',   // must be / so the cookie is sent on all routes
                 maxAge:   options?.maxAge ?? 60 * 60 * 24 * 7,
               })
             )
           } catch {
-            // Called from a Server Component — cookie mutation is a no-op here.
-            // Middleware handles token refresh instead.
+            // no-op when called from a Server Component (read-only context)
           }
         },
       },

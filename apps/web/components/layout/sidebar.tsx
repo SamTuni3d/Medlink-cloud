@@ -10,8 +10,6 @@ import {
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/providers/auth-provider'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
-import { useTransition } from 'react'
-import { signOutAction } from '@/app/(app)/actions'
 import { createClient } from '@/lib/supabase/client'
 import { useEffect, useState } from 'react'
 import { getPendingSuggestionsCount } from '@medlink/data-client'
@@ -217,8 +215,6 @@ export function SidebarNav({ onNavigate }: SidebarNavProps) {
 
 function SidebarUserFooter() {
   const { user, primaryRole } = useAuth()
-  const [isPending, startTransition] = useTransition()
-
   const fullName = (user?.user_metadata?.full_name as string) ?? user?.email ?? 'User'
   const initials = fullName
     .split(' ')
@@ -230,7 +226,7 @@ function SidebarUserFooter() {
   const roleLabel = primaryRole?.replace(/_/g, ' ') ?? ''
 
   function handleSignOut() {
-    startTransition(async () => { await signOutAction() })
+    window.location.href = '/api/auth/signout'
   }
 
   return (
@@ -247,9 +243,8 @@ function SidebarUserFooter() {
         </div>
         <button
           onClick={handleSignOut}
-          disabled={isPending}
           title="Sign out"
-          className="rounded-md p-1.5 text-white/30 hover:bg-white/10 hover:text-white/80 transition-colors disabled:opacity-40"
+          className="rounded-md p-1.5 text-white/30 hover:bg-white/10 hover:text-white/80 transition-colors"
         >
           <LogOut className="h-4 w-4" />
         </button>

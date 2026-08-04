@@ -6,8 +6,6 @@ import { usePathname } from 'next/navigation'
 import { SidebarNav } from './sidebar'
 import { useAuth } from '@/providers/auth-provider'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
-import { useTransition } from 'react'
-import { signOutAction } from '@/app/(app)/actions'
 import { LogOut } from 'lucide-react'
 
 export function MobileNav() {
@@ -15,7 +13,6 @@ export function MobileNav() {
   const [closing, setClosing]   = useState(false)
   const pathname                = usePathname()
   const { user, primaryRole }   = useAuth()
-  const [isPending, startTransition] = useTransition()
   const touchStartX             = useRef<number | null>(null)
 
   // Close on route change
@@ -51,7 +48,7 @@ export function MobileNav() {
   const roleLabel = primaryRole?.replace(/_/g, ' ') ?? ''
 
   function handleSignOut() {
-    startTransition(async () => { await signOutAction() })
+    window.location.href = '/api/auth/signout'
   }
 
   return (
@@ -148,7 +145,6 @@ export function MobileNav() {
                 </div>
                 <button
                   onClick={handleSignOut}
-                  disabled={isPending}
                   title="Sign out"
                   className="rounded-lg p-1.5 transition-colors"
                   style={{ color: 'rgba(255,255,255,0.3)' }}

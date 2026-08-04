@@ -14,8 +14,6 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { MobileNav } from './mobile-nav'
 import { useAuth } from '@/providers/auth-provider'
 import { useBranch } from '@/hooks/useBranch'
-import { useTransition } from 'react'
-import { signOutAction } from '@/app/(app)/actions'
 
 const PAGE_TITLES: Record<string, string> = {
   '/dashboard':    'Dashboard',
@@ -95,8 +93,6 @@ function BranchSelector() {
 export function Topbar() {
   const { user, primaryRole } = useAuth()
   const pathname = usePathname()
-  const [isPending, startTransition] = useTransition()
-
   const pageTitle = Object.entries(PAGE_TITLES).find(([key]) =>
     pathname === key || pathname.startsWith(key + '/')
   )?.[1] ?? ''
@@ -112,7 +108,7 @@ export function Topbar() {
   const roleLabel = primaryRole?.replace(/_/g, ' ') ?? ''
 
   function handleSignOut() {
-    startTransition(async () => { await signOutAction() })
+    window.location.href = '/api/auth/signout'
   }
 
   return (
@@ -181,7 +177,7 @@ export function Topbar() {
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={handleSignOut} disabled={isPending} className="text-red-600 focus:text-red-600">
+            <DropdownMenuItem onClick={handleSignOut} className="text-red-600 focus:text-red-600">
               <LogOut className="mr-2 h-4 w-4" />
               Sign out
             </DropdownMenuItem>

@@ -1,8 +1,6 @@
 'use client'
 
-import { useTransition } from 'react'
 import { LogOut } from 'lucide-react'
-import { signOutAction } from '@/app/(app)/actions'
 import { DropdownMenuItem } from '@/components/ui/dropdown-menu'
 import { Button } from '@/components/ui/button'
 
@@ -10,14 +8,14 @@ interface SignOutButtonProps {
   iconOnly?: boolean
 }
 
-export function SignOutButton({ iconOnly = false }: SignOutButtonProps) {
-  const [isPending, startTransition] = useTransition()
+// Navigate to the sign-out route handler which does a real HTTP 302 redirect.
+// This guarantees the browser clears Set-Cookie headers before the next request,
+// so the middleware sees no session cookie on the /login page.
+function handleSignOut() {
+  window.location.href = '/api/auth/signout'
+}
 
-  function handleSignOut() {
-    startTransition(async () => {
-      await signOutAction()
-    })
-  }
+export function SignOutButton({ iconOnly = false }: SignOutButtonProps) {
 
   if (iconOnly) {
     return (
@@ -25,7 +23,6 @@ export function SignOutButton({ iconOnly = false }: SignOutButtonProps) {
         variant="ghost"
         size="icon"
         onClick={handleSignOut}
-        disabled={isPending}
         className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
         title="Sign out"
       >
@@ -37,11 +34,10 @@ export function SignOutButton({ iconOnly = false }: SignOutButtonProps) {
   return (
     <DropdownMenuItem
       onClick={handleSignOut}
-      disabled={isPending}
       className="text-destructive focus:text-destructive"
     >
       <LogOut className="mr-2 h-4 w-4" />
-      {isPending ? 'Signing out…' : 'Sign out'}
+      Sign out
     </DropdownMenuItem>
   )
 }

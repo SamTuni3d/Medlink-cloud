@@ -1,46 +1,82 @@
 import { NextResponse, type NextRequest } from 'next/server'
+import { createServerClient } from '@supabase/ssr'
 
-// Auth check is done by inspecting the Supabase session cookie directly.
-// This avoids calling @supabase/ssr in the Edge runtime which can cause
-// MIDDLEWARE_INVOCATION_FAILED on Vercel. Full session validation happens
-// inside each Server Component / Route Handler via createServerClient.
-export function middleware(request: NextRequest) {
+// Node.js runtime avoids the MIDDLEWARE_INVOCATION_FAILED error that
+// @supabase/ssr triggers on Vercel's Edge runtime.
+export const runtime = 'nodejs'
+
+const AUTH_ROUTES = [
+  '/login',
+  '/register',
+  '/forgot-password',
+  '/reset-password',
+  '/verify-email',
+]
+
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
-  const authRoutes = [
-    '/login',
-    '/register',
-    '/forgot-password',
-    '/reset-password',
-    '/verify-email',
-  ]
-  const isAuthRoute = authRoutes.some((route) => pathname.startsWith(route))
-
-  // API routes handle their own auth — never gate them here.
-  // This is critical for /api/auth/callback which must run without a session
-  // to exchange the password-reset / email-confirm code for a cookie.
+  // API routes are self-gating. /api/auth/signout must run without being
+  // intercepted; /api/auth/callback must run to exchange codes for cookies.
   if (pathname.startsWith('/api/')) {
     return NextResponse.next()
   }
 
-  // Supabase stores the session in a cookie named sb-<ref>-auth-token
-  const hasSession = request.cookies.getAll().some(
-    (c) => c.name.startsWith('sb-') && c.name.includes('-auth-token')
+  const isAuthRoute = AUTH_ROUTES.some((r) => pathname.startsWith(r))
+
+  // Build a response we can attach refreshed cookies to.
+  let response = NextResponse.next({ request })
+
+  // Create a Supabase client wired to read/write cookies on this request/response.
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return request.cookies.getAll()
+        },
+        setAll(cookiesToSet) {
+          // Write onto the request so downstream code sees fresh cookies.
+          cookiesToSet.forEach(({ name, value }) =>
+            request.cookies.set(name, value)
+          )
+          // Re-create response so it carries the updated request headers.
+          response = NextResponse.next({ request })
+          // Write onto the response so the browser receives updated cookies.
+          cookiesToSet.forEach(({ name, value, options }) =>
+            response.cookies.set(name, value, {
+              ...options,
+              httpOnly: true,
+              secure: process.env.NODE_ENV === 'production',
+              sameSite: 'lax',
+              path: '/',
+            })
+          )
+        },
+      },
+    }
   )
 
-  if (!hasSession && !isAuthRoute) {
+  // getUser() validates the access token and silently refreshes it when it
+  // has expired — the new tokens are written via setAll above.
+  const { data: { user } } = await supabase.auth.getUser()
+
+  const isAuthenticated = !!user
+
+  if (!isAuthenticated && !isAuthRoute) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     return NextResponse.redirect(url)
   }
 
-  if (hasSession && isAuthRoute) {
+  if (isAuthenticated && isAuthRoute) {
     const url = request.nextUrl.clone()
     url.pathname = '/dashboard'
     return NextResponse.redirect(url)
   }
 
-  return NextResponse.next()
+  return response
 }
 
 export const config = {
