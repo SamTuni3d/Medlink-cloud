@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation'
 import {
   LayoutDashboard, Package, ShoppingCart, BarChart2,
   Users, Settings, Tablet, ChevronRight, Bell, Truck,
-  FileText, ClipboardCheck, Clock, LogOut, BookOpen, type LucideIcon,
+  FileText, ClipboardCheck, Clock, LogOut, BookOpen, Timer, type LucideIcon,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/providers/auth-provider'
@@ -105,6 +105,12 @@ const NAV_SECTIONS: NavSection[] = [
   {
     heading: 'Admin',
     items: [
+      {
+        href: '/duty-sessions',
+        label: 'Duty Sessions',
+        icon: Timer,
+        roles: ['super_admin','org_admin','branch_manager','pharmacist','cashier','inventory_manager'],
+      },
       {
         href: '/notifications',
         label: 'Notifications',

@@ -29,6 +29,7 @@ const PAGE_TITLES: Record<string, string> = {
   '/users':        'Users',
   '/settings':     'Settings',
   '/admin/library':'Drug Library',
+  '/duty-sessions': 'Duty Sessions',
 }
 
 function OnlineIndicator() {
