@@ -17,10 +17,9 @@ export async function createClient() {
             cookiesToSet.forEach(({ name, value, options }) =>
               cookieStore.set(name, value, {
                 ...options,
-                httpOnly: true,
                 secure:   process.env.NODE_ENV === 'production',
                 sameSite: 'lax',
-                path:     '/',   // must be / so the cookie is sent on all routes
+                path:     '/',
                 maxAge:   options?.maxAge ?? 60 * 60 * 24 * 7,
               })
             )
