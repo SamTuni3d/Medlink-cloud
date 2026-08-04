@@ -12,7 +12,7 @@ const schema = z.object({ email: z.string().email('Enter a valid email') })
 type FormValues = z.infer<typeof schema>
 
 const inputCls =
-  'w-full border-0 border-b border-gray-200 bg-transparent px-0 py-2 text-sm text-gray-900 placeholder:text-gray-300 focus:border-[#4a6cf7] focus:outline-none focus:ring-0 transition-colors'
+  'w-full border-0 border-b border-gray-200 bg-transparent px-0 py-2 text-sm text-gray-900 placeholder:text-gray-300 focus:border-[#58111A] focus:outline-none focus:ring-0 transition-colors'
 
 export default function ForgotPasswordPage() {
   const [isPending, startTransition] = useTransition()
@@ -40,8 +40,8 @@ export default function ForgotPasswordPage() {
   if (sent) {
     return (
       <div className="text-center">
-        <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-full bg-blue-50">
-          <MailCheck className="h-7 w-7 text-[#4a6cf7]" />
+        <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-full bg-rose-50">
+          <MailCheck className="h-7 w-7 text-[#58111A]" />
         </div>
         <h1 className="text-xl font-bold text-gray-900">Check your email</h1>
         <p className="mt-2 text-sm text-gray-500">
@@ -79,7 +79,7 @@ export default function ForgotPasswordPage() {
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-5" noValidate>
         <div>
-          <label className="mb-1.5 block text-xs font-semibold text-[#4a6cf7]">
+          <label className="mb-1.5 block text-xs font-semibold text-[#58111A]">
             Email address
           </label>
           <input
@@ -98,7 +98,7 @@ export default function ForgotPasswordPage() {
           type="submit"
           disabled={isPending}
           className="w-full rounded-xl py-3 text-sm font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-60"
-          style={{ background: '#4a6cf7', boxShadow: '0 4px 18px rgba(74,108,247,.35)' }}
+          style={{ background: '#58111A', boxShadow: '0 4px 18px rgba(88,17,26,.35)' }}
         >
           {isPending ? 'Sending…' : 'Send reset link'}
         </button>

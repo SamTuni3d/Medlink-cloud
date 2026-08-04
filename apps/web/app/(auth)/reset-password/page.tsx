@@ -26,7 +26,7 @@ const schema = z
 type FormValues = z.infer<typeof schema>
 
 const inputCls =
-  'w-full border-0 border-b border-gray-200 bg-transparent px-0 py-2 text-sm text-gray-900 placeholder:text-gray-300 focus:border-[#4a6cf7] focus:outline-none focus:ring-0 transition-colors'
+  'w-full border-0 border-b border-gray-200 bg-transparent px-0 py-2 text-sm text-gray-900 placeholder:text-gray-300 focus:border-[#58111A] focus:outline-none focus:ring-0 transition-colors'
 
 export default function ResetPasswordPage() {
   const [isPending, startTransition] = useTransition()
@@ -76,7 +76,7 @@ export default function ResetPasswordPage() {
         <p className="mt-1 text-xs text-gray-400">Redirecting you to the dashboard…</p>
         <Link
           href="/dashboard"
-          className="mt-5 inline-block text-sm font-semibold text-[#4a6cf7] hover:opacity-80"
+          className="mt-5 inline-block text-sm font-semibold text-[#58111A] hover:opacity-80"
         >
           Go to dashboard now
         </Link>
@@ -94,7 +94,7 @@ export default function ResetPasswordPage() {
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
         {/* New password */}
         <div>
-          <label className="mb-1.5 block text-xs font-semibold text-[#4a6cf7]">
+          <label className="mb-1.5 block text-xs font-semibold text-[#58111A]">
             New password
           </label>
           <div className="relative">
@@ -125,7 +125,7 @@ export default function ResetPasswordPage() {
 
         {/* Confirm password */}
         <div>
-          <label className="mb-1.5 block text-xs font-semibold text-[#4a6cf7]">
+          <label className="mb-1.5 block text-xs font-semibold text-[#58111A]">
             Confirm new password
           </label>
           <div className="relative">
@@ -164,7 +164,7 @@ export default function ResetPasswordPage() {
           type="submit"
           disabled={isPending}
           className="w-full rounded-xl py-3 text-sm font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-60"
-          style={{ background: '#4a6cf7', boxShadow: '0 4px 18px rgba(74,108,247,.35)' }}
+          style={{ background: '#58111A', boxShadow: '0 4px 18px rgba(88,17,26,.35)' }}
         >
           {isPending ? 'Updating…' : 'Update password'}
         </button>

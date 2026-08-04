@@ -7,7 +7,7 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
       {/* ── Left: blue gradient branding panel ──────────────────────────── */}
       <div
         className="relative hidden w-[46%] overflow-hidden lg:flex lg:flex-col"
-        style={{ background: 'linear-gradient(150deg,#4a6cf7 0%,#6a8dff 45%,#8aaeff 100%)' }}
+        style={{ background: 'linear-gradient(150deg,#58111A 0%,#7a1a26 45%,#9b3040 100%)' }}
       >
         {/* Decorative shapes */}
         <div className="pointer-events-none absolute -right-24 -top-20 h-80 w-80 rounded-full border-[48px] border-white/10" />
@@ -67,7 +67,7 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
       <div className="flex flex-1 flex-col items-center justify-center bg-white px-6 py-12 sm:px-10">
         {/* Mobile logo */}
         <div className="mb-8 flex items-center gap-2 lg:hidden">
-          <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-[8px]" style={{ background: '#4a6cf7' }}>
+          <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-[8px]" style={{ background: '#58111A' }}>
             <svg viewBox="0 0 24 24" fill="none" width="17" height="17">
               <path d="M12 3v18M3 12h18" stroke="white" strokeWidth="2.5" strokeLinecap="round" />
             </svg>

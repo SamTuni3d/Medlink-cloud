@@ -16,7 +16,7 @@ const schema = z.object({
 type FormValues = z.infer<typeof schema>
 
 const inputCls =
-  'w-full border-0 border-b border-gray-200 bg-transparent px-0 py-2 text-sm text-gray-900 placeholder:text-gray-300 focus:border-[#4a6cf7] focus:outline-none focus:ring-0 transition-colors'
+  'w-full border-0 border-b border-gray-200 bg-transparent px-0 py-2 text-sm text-gray-900 placeholder:text-gray-300 focus:border-[#58111A] focus:outline-none focus:ring-0 transition-colors'
 
 function SocialButton({ icon, label }: { icon: React.ReactNode; label: string }) {
   return (
@@ -85,7 +85,7 @@ function LoginForm() {
         >
           Sign Up
         </Link>
-        <span className="relative pb-2.5 text-base font-bold text-gray-900 after:absolute after:inset-x-0 after:-bottom-px after:h-[2.5px] after:rounded-full after:bg-[#4a6cf7]">
+        <span className="relative pb-2.5 text-base font-bold text-gray-900 after:absolute after:inset-x-0 after:-bottom-px after:h-[2.5px] after:rounded-full after:bg-[#58111A]">
           Sign In
         </span>
       </div>
@@ -102,7 +102,7 @@ function LoginForm() {
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-5" noValidate>
         <div>
-          <label className="mb-1.5 block text-xs font-semibold text-[#4a6cf7]">E-mail</label>
+          <label className="mb-1.5 block text-xs font-semibold text-[#58111A]">E-mail</label>
           <input
             type="email"
             placeholder="Enter your email"
@@ -117,10 +117,10 @@ function LoginForm() {
 
         <div>
           <div className="mb-1.5 flex items-center justify-between">
-            <label className="text-xs font-semibold text-[#4a6cf7]">Password</label>
+            <label className="text-xs font-semibold text-[#58111A]">Password</label>
             <Link
               href="/forgot-password"
-              className="text-xs font-semibold text-[#4a6cf7] hover:opacity-80"
+              className="text-xs font-semibold text-[#58111A] hover:opacity-80"
               tabIndex={-1}
             >
               Forgot your password?
@@ -153,7 +153,7 @@ function LoginForm() {
           <input
             type="checkbox"
             id="remember"
-            className="h-3.5 w-3.5 cursor-pointer accent-[#4a6cf7]"
+            className="h-3.5 w-3.5 cursor-pointer accent-[#58111A]"
           />
           <label htmlFor="remember" className="cursor-pointer text-xs text-gray-400">
             Remember me
@@ -170,7 +170,7 @@ function LoginForm() {
           type="submit"
           disabled={isPending}
           className="mt-2 w-full rounded-xl py-3 text-sm font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-60"
-          style={{ background: '#4a6cf7', boxShadow: '0 4px 18px rgba(74,108,247,.35)' }}
+          style={{ background: '#58111A', boxShadow: '0 4px 18px rgba(88,17,26,.35)' }}
         >
           {isPending ? 'Signing in…' : 'Login'}
         </button>
@@ -189,7 +189,7 @@ function LoginForm() {
 
       <p className="mt-6 text-center text-sm text-gray-400">
         Don&apos;t have an account?{' '}
-        <Link href="/register" className="font-bold text-[#4a6cf7] hover:opacity-80">
+        <Link href="/register" className="font-bold text-[#58111A] hover:opacity-80">
           Sign Up
         </Link>
       </p>
