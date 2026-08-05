@@ -10,6 +10,8 @@ import {
   importFromLibrary,
   submitToLibrary,
   ImportItemSchema,
+  upsertMedicationCounseling,
+  UpsertCounselingSchema,
 } from '@medlink/data-client'
 
 export type ActionResult<T = void> =
@@ -125,6 +127,30 @@ export async function deleteMedicationAction(
 
   revalidatePath('/medications')
   revalidatePath('/inventory')
+  return { ok: true, data: undefined }
+}
+
+// ── Save medication counseling info sheet ──────────────────────────────────────
+
+const CounselingActionSchema = z.object({
+  medicationId:   z.string().uuid(),
+  organizationId: z.string().uuid(),
+  fields:         UpsertCounselingSchema,
+})
+
+export async function saveMedicationCounselingAction(
+  input: z.infer<typeof CounselingActionSchema>
+): Promise<ActionResult> {
+  const parsed = CounselingActionSchema.safeParse(input)
+  if (!parsed.success) {
+    return { ok: false, error: { code: 'VALIDATION_ERROR', message: parsed.error.issues[0]?.message ?? 'Invalid input' } }
+  }
+
+  const { medicationId, organizationId, fields } = parsed.data
+  const result = await upsertMedicationCounseling(await createClient(), medicationId, organizationId, fields)
+  if (!result.ok) return { ok: false, error: result.error }
+
+  revalidatePath('/medications')
   return { ok: true, data: undefined }
 }
 

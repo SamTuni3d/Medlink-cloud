@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useTransition } from 'react'
 import {
   Search, Plus, BookOpen, Package, Edit2, ToggleLeft,
-  ToggleRight, Loader2, Pill, Trash2, AlertTriangle,
+  ToggleRight, Loader2, Pill, Trash2, AlertTriangle, FileText,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -19,11 +19,11 @@ import { Label } from '@/components/ui/label'
 import { useAuth } from '@/providers/auth-provider'
 import { useBranch } from '@/hooks/useBranch'
 import { createClient } from '@/lib/supabase/client'
-import { getMedications } from '@medlink/data-client'
+import { getMedications, getMedicationCounseling } from '@medlink/data-client'
 import { formatCurrency } from '@/lib/formatCurrency'
-import type { Medication } from '@medlink/data-client'
+import type { Medication, MedicationCounseling } from '@medlink/data-client'
 import ImportFromLibraryModal from '@/components/inventory/ImportFromLibraryModal'
-import { addCustomMedicationAction, updateMedicationAction, deleteMedicationAction } from './actions'
+import { addCustomMedicationAction, updateMedicationAction, deleteMedicationAction, saveMedicationCounselingAction } from './actions'
 import { useToast } from '@/hooks/use-toast'
 
 const CATEGORIES = [
@@ -40,6 +40,132 @@ const DOSAGE_FORMS = [
 ]
 
 const UNITS = ['tablets', 'capsules', 'ml', 'mg', 'g', 'units', 'vials', 'sachets', 'pcs']
+
+// ── Counseling info sheet dialog ──────────────────────────────────────────────
+
+const COUNSELING_FIELDS: { key: keyof Omit<MedicationCounseling, 'id' | 'medication_id' | 'organization_id' | 'created_at' | 'updated_at'>; label: string; hint?: string }[] = [
+  { key: 'purpose',              label: 'Purpose',                      hint: 'What is this medication used for?' },
+  { key: 'dosage_instructions',  label: 'Dosage',                       hint: 'How much to take per dose' },
+  { key: 'frequency',            label: 'Frequency',                    hint: 'How often to take it (e.g. twice daily)' },
+  { key: 'duration',             label: 'Duration',                     hint: 'How long the course lasts' },
+  { key: 'how_to_take',          label: 'How to Take It',               hint: 'With/without food, swallow whole, etc.' },
+  { key: 'missed_dose',          label: 'Missed Dose',                  hint: 'What to do if a dose is missed' },
+  { key: 'expected_benefits',    label: 'Expected Benefits',            hint: 'When should the patient notice improvement?' },
+  { key: 'common_side_effects',  label: 'Common Side Effects',          hint: 'Mild effects the patient may experience' },
+  { key: 'serious_side_effects', label: 'Serious Side Effects',         hint: 'When to seek immediate medical help' },
+  { key: 'warnings_precautions', label: 'Warnings & Precautions',       hint: 'Pregnancy, kidney/liver disease, allergies, etc.' },
+  { key: 'drug_interactions',    label: 'Drug Interactions',            hint: 'Other medicines or supplements to avoid' },
+  { key: 'food_alcohol',         label: 'Food & Alcohol Interactions',  hint: 'Foods, drinks, or alcohol to avoid' },
+  { key: 'storage_instructions', label: 'Storage Instructions',         hint: 'Temperature, light, refrigeration, etc.' },
+  { key: 'monitoring_required',  label: 'Monitoring Requirements',      hint: 'Blood tests, check-ups, or vitals to watch' },
+  { key: 'contact_doctor_when',  label: 'When to Contact a Doctor',     hint: 'Signs that need professional follow-up' },
+  { key: 'adherence_note',       label: 'Importance of Adherence',      hint: 'Why completing the full course matters' },
+]
+
+function CounselingDialog({
+  medication,
+  organizationId,
+  open,
+  onClose,
+}: {
+  medication: Medication
+  organizationId: string
+  open: boolean
+  onClose: () => void
+}) {
+  const { toast } = useToast()
+  const [loadingSheet, setLoadingSheet] = useState(false)
+  const [isPending, startTransition] = useTransition()
+  const [form, setForm] = useState<Record<string, string>>({})
+
+  useEffect(() => {
+    if (!open) return
+    setLoadingSheet(true)
+    getMedicationCounseling(createClient(), medication.id).then(result => {
+      setLoadingSheet(false)
+      if (result.ok && result.data) {
+        const filled: Record<string, string> = {}
+        for (const { key } of COUNSELING_FIELDS) {
+          filled[key] = result.data[key] ?? ''
+        }
+        setForm(filled)
+      } else {
+        setForm({})
+      }
+    })
+  }, [open, medication.id])
+
+  function handleSave() {
+    const fields: Record<string, string | null> = {}
+    for (const { key } of COUNSELING_FIELDS) {
+      fields[key] = form[key]?.trim() || null
+    }
+
+    startTransition(async () => {
+      const result = await saveMedicationCounselingAction({
+        medicationId:   medication.id,
+        organizationId,
+        fields,
+      })
+      if (!result.ok) {
+        toast({ title: 'Error saving', description: result.error.message, variant: 'destructive' })
+        return
+      }
+      toast({ title: 'Info sheet saved', description: `${medication.name} counseling info updated.` })
+      onClose()
+    })
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={v => !v && onClose()}>
+      <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col gap-0 p-0">
+        <DialogHeader className="px-6 pt-5 pb-4 border-b border-border shrink-0">
+          <DialogTitle className="flex items-center gap-2">
+            <FileText className="h-5 w-5 text-primary" />
+            Patient Counseling — {medication.name}
+          </DialogTitle>
+          {medication.generic_name && (
+            <p className="text-sm text-muted-foreground mt-0.5">{medication.generic_name}</p>
+          )}
+        </DialogHeader>
+
+        {loadingSheet ? (
+          <div className="flex flex-1 items-center justify-center py-16">
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          </div>
+        ) : (
+          <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+            <p className="text-xs text-muted-foreground bg-muted/40 rounded-md px-3 py-2">
+              Fill in the fields that apply. Leave blank what isn&apos;t relevant. Pharmacists and cashiers will see this when dispensing.
+            </p>
+            {COUNSELING_FIELDS.map(({ key, label, hint }) => (
+              <div key={key} className="space-y-1.5">
+                <Label className="text-sm font-medium">{label}</Label>
+                {hint && <p className="text-xs text-muted-foreground -mt-0.5">{hint}</p>}
+                <textarea
+                  rows={2}
+                  className="w-full resize-none rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  value={form[key] ?? ''}
+                  onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setForm(f => ({ ...f, [key]: e.target.value }))}
+                />
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div className="shrink-0 flex gap-2 px-6 py-4 border-t border-border">
+          <Button variant="outline" className="flex-1" onClick={onClose} disabled={isPending}>
+            Cancel
+          </Button>
+          <Button className="flex-1" onClick={handleSave} disabled={isPending || loadingSheet}>
+            {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+            Save Info Sheet
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
+}
 
 // ── Edit price dialog ─────────────────────────────────────────────────────────
 
@@ -308,6 +434,8 @@ export default function MedicationsPage() {
   const [togglingId, setTogglingId] = useState<string | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<Medication | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [deleteConflict, setDeleteConflict] = useState<Medication | null>(null)
+  const [counseling, setCounseling] = useState<Medication | null>(null)
 
   const load = useCallback(async () => {
     if (!organizationId) return
@@ -325,7 +453,11 @@ export default function MedicationsPage() {
     setDeletingId(null)
     setConfirmDelete(null)
     if (!result.ok) {
-      toast({ title: 'Could not remove', description: result.error.message, variant: 'destructive' })
+      if (result.error.code === 'CONFLICT') {
+        setDeleteConflict(med)
+      } else {
+        toast({ title: 'Could not remove', description: result.error.message, variant: 'destructive' })
+      }
       return
     }
     toast({ title: 'Removed', description: `${med.name} has been removed from your catalog.` })
@@ -521,6 +653,15 @@ export default function MedicationsPage() {
                             variant="ghost"
                             size="icon"
                             className="h-8 w-8"
+                            title="Patient counseling info"
+                            onClick={() => setCounseling(med)}
+                          >
+                            <FileText className="h-3.5 w-3.5 text-muted-foreground" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
                             title="Edit price"
                             onClick={() => setEditing(med)}
                           >
@@ -631,6 +772,53 @@ export default function MedicationsPage() {
           open={!!editing}
           onClose={() => setEditing(null)}
           onSaved={() => void load()}
+        />
+      )}
+
+      {/* Cannot delete — has linked records */}
+      {deleteConflict && (
+        <Dialog open={!!deleteConflict} onOpenChange={v => !v && setDeleteConflict(null)}>
+          <DialogContent className="max-w-sm">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5 text-amber-500" />
+                Cannot delete this medication
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 pt-1">
+              <p className="text-sm text-muted-foreground">
+                <span className="font-semibold text-foreground">{deleteConflict.name}</span> has stock or sales records linked to it. Deleting it would break that history.
+              </p>
+              <p className="text-sm text-muted-foreground">
+                <strong>Deactivate it instead</strong> — it disappears from the POS and catalog without removing any records.
+              </p>
+              <div className="flex gap-2">
+                <Button variant="outline" className="flex-1" onClick={() => setDeleteConflict(null)}>
+                  Cancel
+                </Button>
+                <Button
+                  className="flex-1"
+                  onClick={() => {
+                    const med = deleteConflict
+                    setDeleteConflict(null)
+                    void toggleActive(med)
+                  }}
+                >
+                  Deactivate Instead
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Counseling info sheet modal */}
+      {counseling && organizationId && (
+        <CounselingDialog
+          medication={counseling}
+          organizationId={organizationId}
+          open={!!counseling}
+          onClose={() => setCounseling(null)}
         />
       )}
     </div>

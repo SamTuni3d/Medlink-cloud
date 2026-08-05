@@ -135,6 +135,37 @@ export async function deleteMedication(
   id: string
 ): Promise<Result<void>> {
   try {
+    // Block deletion if the medication has any sales history — that data must be preserved.
+    const { count: saleCount, error: saleErr } = await client
+      .from('sale_items')
+      .select('id', { count: 'exact', head: true })
+      .eq('medication_id', id)
+
+    if (saleErr) return err(toAppError(saleErr))
+
+    if ((saleCount ?? 0) > 0) {
+      return err({
+        code: 'CONFLICT',
+        message: 'This medication has sales records and cannot be deleted. Deactivate it instead — that hides it from the POS without removing its history.',
+      })
+    }
+
+    // No sales — safe to remove inventory rows first (they'll have 0 stock), then the medication.
+    const { error: invErr } = await client
+      .from('inventory')
+      .delete()
+      .eq('medication_id', id)
+
+    if (invErr) return err(toAppError(invErr))
+
+    // Also clear any inventory batches with no movements
+    const { error: batchErr } = await client
+      .from('inventory_batches')
+      .delete()
+      .eq('medication_id', id)
+
+    if (batchErr) return err(toAppError(batchErr))
+
     const { error } = await client
       .from('medications_master')
       .delete()
@@ -151,24 +182,18 @@ export async function updateMedication(
   client: SupabaseClient,
   id: string,
   input: MedicationUpdate
-): Promise<Result<Medication>> {
+): Promise<Result<void>> {
   try {
     const validated = MedicationUpdateSchema.safeParse(input)
     if (!validated.success) return err(toAppError(validated.error))
 
-    const { data, error } = await client
+    const { error } = await client
       .from('medications_master')
       .update(validated.data)
       .eq('id', id)
-      .select()
-      .single()
 
     if (error) return err(toAppError(error))
-
-    const parsed = MedicationSchema.safeParse(data)
-    if (!parsed.success) return err(toAppError(parsed.error))
-
-    return ok(parsed.data)
+    return ok(undefined)
   } catch (e) {
     return err(toAppError(e))
   }

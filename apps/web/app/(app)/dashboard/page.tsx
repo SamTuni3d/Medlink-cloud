@@ -28,43 +28,20 @@ function getLast7Days(): ChartDay[] {
   })
 }
 
-function expiryStyle(days: number): { bg: string; color: string } {
-  if (days <= 21) return { bg: '#fff1f1', color: '#b91c1c' }
-  if (days <= 60) return { bg: '#fef9ee', color: '#b45309' }
-  return { bg: '#eff6ff', color: '#1d4ed8' }
+function expiryStyle(days: number): string {
+  if (days <= 21) return 'bg-red-50 text-red-700'
+  if (days <= 60) return 'bg-amber-50 text-amber-700'
+  return 'bg-blue-50 text-blue-700'
 }
 
-function payStyle(method: string): { label: string; bg: string; color: string } {
+function payStyle(method: string): { label: string; className: string } {
   if (method.includes('mobile') || method.includes('momo') || method.includes('money')) {
-    return { label: 'MoMo', bg: '#eff6ff', color: '#1d4ed8' }
+    return { label: 'MoMo', className: 'bg-blue-50 text-blue-700' }
   }
   if (method.includes('card')) {
-    return { label: 'Card', bg: '#fef9ee', color: '#b45309' }
+    return { label: 'Card', className: 'bg-amber-50 text-amber-700' }
   }
-  return { label: 'Cash', bg: '#f0fdf4', color: '#15803d' }
-}
-
-// ── design tokens ─────────────────────────────────────────────────────────────
-
-const CARD: React.CSSProperties = {
-  background: '#fff',
-  border: '1px solid rgba(17,24,39,.08)',
-  borderRadius: 10,
-  boxShadow: '0 1px 2px rgba(0,0,0,.04), 0 4px 14px rgba(0,0,0,.04)',
-  overflow: 'hidden',
-}
-
-const CARD_HEAD: React.CSSProperties = {
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'space-between',
-  padding: '14px 20px 12px',
-  borderBottom: '1px solid rgba(17,24,39,.08)',
-}
-
-const TAG_BASE: React.CSSProperties = {
-  fontSize: 11, fontWeight: 600, padding: '3px 9px',
-  borderRadius: 999, whiteSpace: 'nowrap',
+  return { label: 'Cash', className: 'bg-green-50 text-green-700' }
 }
 
 // ── KPI card ──────────────────────────────────────────────────────────────────
@@ -77,40 +54,51 @@ function KpiCard({ label, value, sub, numColor, loading }: {
   loading?: boolean
 }) {
   return (
-    <div style={{ ...CARD, padding: '20px 20px 16px' }}>
-      <p style={{ fontSize: 11.5, fontWeight: 600, color: '#9ca3af', marginBottom: 10 }}>{label}</p>
+    <div className="rounded-xl border border-black/[0.08] bg-white shadow-sm p-3 sm:p-4 lg:p-5">
+      <p className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-wide text-gray-400 mb-1.5 sm:mb-2">{label}</p>
       {loading ? (
         <>
-          <Skeleton className="h-8 w-28 mb-2.5" />
-          <Skeleton className="h-3 w-32" />
+          <Skeleton className="h-7 w-24 mb-2" />
+          <Skeleton className="h-3 w-20" />
         </>
       ) : (
         <>
-          <p style={{
-            fontSize: 30, fontWeight: 800, fontVariantNumeric: 'tabular-nums',
-            lineHeight: 1, color: numColor ?? '#111827', marginBottom: 9,
-          }}>{value}</p>
-          {sub && <p style={{ fontSize: 12, color: '#9ca3af' }}>{sub}</p>}
+          <p
+            className="text-[18px] sm:text-xl md:text-2xl lg:text-xl xl:text-2xl font-extrabold leading-tight mb-1 sm:mb-2 break-all"
+            style={{ fontVariantNumeric: 'tabular-nums', color: numColor ?? '#111827' }}
+          >
+            {value}
+          </p>
+          {sub && <p className="text-[11px] sm:text-xs text-gray-400">{sub}</p>}
         </>
       )}
     </div>
   )
 }
 
-// ── chart title/sub ───────────────────────────────────────────────────────────
+// ── section card wrapper ──────────────────────────────────────────────────────
 
-function CardHead({ title, sub, tag, tagColor }: {
-  title: string; sub?: string
-  tag?: string; tagColor?: { bg: string; color: string }
+function Card({ children, className = '' }: { children: React.ReactNode; className?: string }) {
+  return (
+    <div className={`rounded-xl border border-black/[0.08] bg-white shadow-sm overflow-hidden ${className}`}>
+      {children}
+    </div>
+  )
+}
+
+function CardHead({ title, sub, tag, tagClass }: {
+  title: string; sub?: string; tag?: string; tagClass?: string
 }) {
   return (
-    <div style={CARD_HEAD}>
-      <div>
-        <p style={{ fontSize: 13.5, fontWeight: 700, color: '#111827' }}>{title}</p>
-        {sub && <p style={{ fontSize: 11.5, color: '#9ca3af', marginTop: 2 }}>{sub}</p>}
+    <div className="flex items-center justify-between gap-3 px-4 sm:px-5 py-3 sm:py-3.5 border-b border-black/[0.08]">
+      <div className="min-w-0">
+        <p className="text-[13.5px] font-bold text-gray-900 truncate">{title}</p>
+        {sub && <p className="text-[11.5px] text-gray-400 mt-0.5 truncate">{sub}</p>}
       </div>
-      {tag && tagColor && (
-        <span style={{ ...TAG_BASE, background: tagColor.bg, color: tagColor.color }}>{tag}</span>
+      {tag && (
+        <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-[11px] font-semibold whitespace-nowrap ${tagClass ?? 'bg-green-50 text-green-700'}`}>
+          {tag}
+        </span>
       )}
     </div>
   )
@@ -177,52 +165,45 @@ export default function DashboardPage() {
   const healthyCount = totalInventory - (stats?.lowStockCount ?? 0) - outOfStockCount
 
   const donutData = [
-    { name: 'Healthy',      value: healthyCount,          color: '#16a34a' },
+    { name: 'Healthy',      value: healthyCount,              color: '#16a34a' },
     { name: 'Low stock',    value: stats?.lowStockCount ?? 0, color: '#d97706' },
-    { name: 'Out of stock', value: outOfStockCount,        color: '#dc2626' },
+    { name: 'Out of stock', value: outOfStockCount,           color: '#dc2626' },
   ]
 
-  return (
-    <div style={{ maxWidth: 1280, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 14 }}>
+  const criticalExpiring = expiringBatches.filter(r => (r.days_to_nearest_expiry ?? 999) <= 21).length
 
-      {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
+  return (
+    <div className="mx-auto max-w-screen-xl flex flex-col gap-3 sm:gap-4">
+
+      {/* ── Header ── */}
+      <div className="flex items-start justify-between gap-3">
         <div>
-          <h1 style={{ fontSize: 20, fontWeight: 700, color: '#111827', lineHeight: 1.2 }}>Dashboard</h1>
-          <p style={{ fontSize: 12, color: '#9ca3af', marginTop: 4 }}>
+          <h1 className="text-lg sm:text-xl font-bold text-gray-900 leading-tight">Dashboard</h1>
+          <p className="text-xs text-gray-400 mt-1">
             {activeBranch ? activeBranch.name : 'Select a branch'} &nbsp;·&nbsp; Overview
           </p>
         </div>
         <button
           onClick={() => { void refresh(); void loadSales() }}
           disabled={loading}
-          style={{
-            display: 'flex', alignItems: 'center', gap: 6,
-            padding: '7px 12px', borderRadius: 7,
-            border: '1px solid rgba(17,24,39,.08)', background: '#fff',
-            fontSize: 12.5, fontWeight: 500, color: '#4b5563',
-            cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.6 : 1,
-          }}
+          className="flex shrink-0 items-center gap-1.5 rounded-lg border border-black/[0.08] bg-white px-3 py-1.5 text-xs font-medium text-gray-600 shadow-sm transition-opacity disabled:opacity-50"
         >
-          <RefreshCw size={13} className={loading ? 'animate-spin' : ''} />
+          <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
           Refresh
         </button>
       </div>
 
       {error && (
-        <div style={{ padding: '10px 14px', borderRadius: 8, background: '#fff1f1', border: '1px solid #fecaca', color: '#b91c1c', fontSize: 13 }}>
-          {error}
-        </div>
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-2.5 text-sm text-red-700">{error}</div>
       )}
-
       {!activeBranch && !loading && (
-        <div style={{ padding: '10px 14px', borderRadius: 8, background: '#f0fdf4', border: '1px solid #bbf7d0', color: '#15803d', fontSize: 13 }}>
+        <div className="rounded-lg border border-green-200 bg-green-50 px-4 py-2.5 text-sm text-green-700">
           Select a branch from the top bar to see live data.
         </div>
       )}
 
       {/* ── KPI Row ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <KpiCard
           label="Revenue Today"
           value={formatCurrency(stats?.salesTodayAmount ?? 0, currency)}
@@ -253,23 +234,23 @@ export default function DashboardPage() {
         />
       </div>
 
-      {/* ── Chart Row: sales (2fr) | donut (1fr) ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 12 }}>
+      {/* ── Chart Row: sales area (wide) + donut ── */}
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
 
-        {/* Sales Trend */}
-        <div style={CARD}>
+        {/* Sales Trend — takes 2/3 on large screens */}
+        <Card className="lg:col-span-2">
           <CardHead
             title="Weekly Sales"
             sub="Revenue over the last 7 days"
             tag="This week"
-            tagColor={{ bg: '#f0fdf4', color: '#15803d' }}
+            tagClass="bg-green-50 text-green-700"
           />
-          <div style={{ padding: '12px 4px 0 0' }}>
+          <div className="pt-3 pr-1">
             {salesLoading ? (
-              <div style={{ padding: '0 16px 16px' }}><Skeleton className="h-48 w-full" /></div>
+              <div className="px-4 pb-4"><Skeleton className="h-44 w-full" /></div>
             ) : (
-              <ResponsiveContainer width="100%" height={188}>
-                <AreaChart data={chartData} margin={{ top: 8, right: 20, left: 0, bottom: 0 }}>
+              <ResponsiveContainer width="100%" height={180}>
+                <AreaChart data={chartData} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
                   <defs>
                     <linearGradient id="salesGrad" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%"  stopColor="#16a34a" stopOpacity={0.14} />
@@ -277,309 +258,218 @@ export default function DashboardPage() {
                     </linearGradient>
                   </defs>
                   <CartesianGrid vertical={false} stroke="rgba(17,24,39,.06)" strokeDasharray="0" />
-                  <XAxis
-                    dataKey="date"
-                    tick={{ fontSize: 10.5, fill: '#9ca3af' }}
-                    axisLine={false} tickLine={false}
-                  />
+                  <XAxis dataKey="date" tick={{ fontSize: 10.5, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
                   <YAxis
-                    tick={{ fontSize: 10, fill: '#9ca3af' }}
-                    axisLine={false} tickLine={false} width={46}
+                    tick={{ fontSize: 10, fill: '#9ca3af' }} axisLine={false} tickLine={false} width={44}
                     tickFormatter={v => v === 0 ? '0' : v >= 1000 ? `${(v / 1000).toFixed(0)}k` : String(Math.round(v as number))}
                   />
                   <Tooltip
                     formatter={(value) => [formatCurrency(Number(value), currency), 'Revenue']}
-                    contentStyle={{
-                      borderRadius: 8, border: '1px solid rgba(17,24,39,.08)',
-                      fontSize: 12, boxShadow: '0 4px 14px rgba(0,0,0,.08)',
-                    }}
+                    contentStyle={{ borderRadius: 8, border: '1px solid rgba(17,24,39,.08)', fontSize: 12, boxShadow: '0 4px 14px rgba(0,0,0,.08)' }}
                   />
-                  <Area
-                    type="monotone" dataKey="amount"
-                    stroke="#16a34a" strokeWidth={2.5}
-                    fill="url(#salesGrad)"
-                    dot={false}
-                    activeDot={{ r: 5, fill: '#16a34a', strokeWidth: 0 }}
-                  />
+                  <Area type="monotone" dataKey="amount" stroke="#16a34a" strokeWidth={2.5} fill="url(#salesGrad)" dot={false} activeDot={{ r: 5, fill: '#16a34a', strokeWidth: 0 }} />
                 </AreaChart>
               </ResponsiveContainer>
             )}
           </div>
-        </div>
+        </Card>
 
         {/* Stock Health Donut */}
-        <div style={{ ...CARD, display: 'flex', flexDirection: 'column' }}>
+        <Card className="flex flex-col">
           <CardHead title="Stock Health" sub={`${totalInventory} medications in catalog`} />
           {loading ? (
-            <div style={{ padding: '20px 20px 16px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
-              <Skeleton className="w-36 h-36 rounded-full" />
+            <div className="flex flex-col items-center gap-3 p-5">
+              <Skeleton className="h-36 w-36 rounded-full" />
               <Skeleton className="h-4 w-full" />
             </div>
           ) : (
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '20px 20px 16px' }}>
-              <div style={{ position: 'relative', width: 148, height: 148 }}>
+            <div className="flex flex-1 flex-col items-center p-4 sm:p-5">
+              <div className="relative" style={{ width: 148, height: 148 }}>
                 <PieChart width={148} height={148}>
                   <Pie
-                    data={donutData}
-                    cx={74} cy={74}
+                    data={donutData} cx={74} cy={74}
                     innerRadius={38} outerRadius={62}
                     startAngle={90} endAngle={-270}
-                    paddingAngle={1.5}
-                    dataKey="value"
-                    strokeWidth={0}
+                    paddingAngle={1.5} dataKey="value" strokeWidth={0}
                   >
                     {donutData.map((s, i) => <Cell key={i} fill={s.color} />)}
                   </Pie>
                 </PieChart>
-                <div style={{
-                  position: 'absolute', inset: 0,
-                  display: 'flex', flexDirection: 'column',
-                  alignItems: 'center', justifyContent: 'center',
-                  pointerEvents: 'none',
-                }}>
-                  <span style={{ fontSize: 22, fontWeight: 800, color: '#111827', lineHeight: 1 }}>
-                    {totalInventory}
-                  </span>
-                  <span style={{ fontSize: 10, color: '#9ca3af', marginTop: 3 }}>medications</span>
+                <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+                  <span className="text-[22px] font-extrabold leading-none text-gray-900">{totalInventory}</span>
+                  <span className="mt-1 text-[10px] text-gray-400">medications</span>
                 </div>
               </div>
-
-              <div style={{
-                display: 'flex', justifyContent: 'space-around', width: '100%',
-                marginTop: 16, paddingTop: 14, borderTop: '1px solid rgba(17,24,39,.08)',
-              }}>
+              <div className="mt-4 flex w-full justify-around border-t border-black/[0.08] pt-4">
                 {donutData.map(s => (
-                  <div key={s.name} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, flex: 1 }}>
-                    <div style={{ width: 8, height: 8, borderRadius: 2, background: s.color }} />
-                    <span style={{ fontSize: 16, fontWeight: 800, color: '#111827', fontVariantNumeric: 'tabular-nums' }}>
-                      {s.value}
-                    </span>
-                    <span style={{ fontSize: 10.5, color: '#9ca3af', fontWeight: 500, textAlign: 'center', lineHeight: 1.4 }}>
-                      {s.name}<br />
-                      {totalInventory > 0 ? `${Math.round(s.value / totalInventory * 100)}%` : '0%'}
+                  <div key={s.name} className="flex flex-1 flex-col items-center gap-1">
+                    <div className="h-2 w-2 rounded-sm" style={{ background: s.color }} />
+                    <span className="text-base font-extrabold text-gray-900" style={{ fontVariantNumeric: 'tabular-nums' }}>{s.value}</span>
+                    <span className="text-center text-[10.5px] leading-snug text-gray-400">
+                      {s.name}<br />{totalInventory > 0 ? `${Math.round(s.value / totalInventory * 100)}%` : '0%'}
                     </span>
                   </div>
                 ))}
               </div>
             </div>
           )}
-        </div>
-
+        </Card>
       </div>
 
-      {/* ── Bottom Row: top meds (1fr) | expiring (1fr) ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+      {/* ── Bottom Row: top meds + expiring ── */}
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
 
         {/* Top Medications */}
-        <div style={CARD}>
-          <CardHead
-            title="Top Medications"
-            sub="By stock value — current inventory"
-            tag="By value"
-            tagColor={{ bg: '#f0fdf4', color: '#15803d' }}
-          />
-          <div style={{ padding: '8px 20px 14px' }}>
+        <Card>
+          <CardHead title="Top Medications" sub="By stock value — current inventory" tag="By value" tagClass="bg-green-50 text-green-700" />
+          <div className="px-4 sm:px-5 pb-3">
             {loading ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, paddingTop: 8 }}>
-                {[1,2,3,4].map(i => <Skeleton key={i} className="h-9 w-full" />)}
-              </div>
+              <div className="flex flex-col gap-2 pt-3">{[1,2,3,4].map(i => <Skeleton key={i} className="h-9 w-full" />)}</div>
             ) : topMeds.length === 0 ? (
-              <div style={{ padding: '32px 0', textAlign: 'center', color: '#9ca3af', fontSize: 13 }}>
-                No inventory data
-              </div>
+              <div className="py-8 text-center text-sm text-gray-400">No inventory data</div>
             ) : topMeds.map((m, i) => {
               const val = Number(m.selling_price) * m.available_stock
               const pct = Math.round((val / maxMedVal) * 100)
               return (
-                <div key={m.medication_name} style={{
-                  display: 'flex', alignItems: 'center', gap: 12,
-                  padding: '10px 0',
-                  borderBottom: i < topMeds.length - 1 ? '1px solid rgba(17,24,39,.08)' : 'none',
-                }}>
-                  <span style={{ width: 16, fontSize: 11, fontWeight: 700, color: '#9ca3af', textAlign: 'right', flexShrink: 0 }}>
-                    {i + 1}
-                  </span>
-                  <span style={{ flex: 1, fontSize: 13, fontWeight: 500, color: '#4b5563', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>
-                    {m.medication_name}
-                  </span>
-                  <div style={{ width: 70, flexShrink: 0 }}>
-                    <div style={{ height: 5, background: 'rgba(17,24,39,.06)', borderRadius: 3, overflow: 'hidden' }}>
-                      <div style={{ height: '100%', width: `${pct}%`, background: '#16a34a', borderRadius: 3 }} />
+                <div
+                  key={m.medication_name}
+                  className={`flex items-center gap-3 py-2.5 ${i < topMeds.length - 1 ? 'border-b border-black/[0.06]' : ''}`}
+                >
+                  <span className="w-4 shrink-0 text-right text-[11px] font-bold text-gray-400">{i + 1}</span>
+                  <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-gray-600">{m.medication_name}</span>
+                  <div className="hidden sm:block w-16 shrink-0">
+                    <div className="h-1.5 rounded-full bg-black/[0.06] overflow-hidden">
+                      <div className="h-full rounded-full bg-green-600" style={{ width: `${pct}%` }} />
                     </div>
                   </div>
-                  <span style={{ width: 70, fontSize: 12, fontWeight: 700, color: '#111827', textAlign: 'right', flexShrink: 0, fontVariantNumeric: 'tabular-nums' }}>
+                  <span className="w-16 shrink-0 text-right text-xs font-bold text-gray-900 tabular-nums">
                     {formatCurrency(val, currency)}
                   </span>
                 </div>
               )
             })}
           </div>
-        </div>
+        </Card>
 
         {/* Expiring Soon */}
-        <div style={CARD}>
+        <Card>
           <CardHead
             title="Expiring Soon"
             sub="Batches within the next 90 days"
-            tag={expiringBatches.filter(r => (r.days_to_nearest_expiry ?? 999) <= 21).length > 0
-              ? `${expiringBatches.filter(r => (r.days_to_nearest_expiry ?? 999) <= 21).length} critical`
-              : `${expiringBatches.length} batches`}
-            tagColor={expiringBatches.some(r => (r.days_to_nearest_expiry ?? 999) <= 21)
-              ? { bg: '#fff1f1', color: '#b91c1c' }
-              : { bg: '#f0fdf4', color: '#15803d' }}
+            tag={criticalExpiring > 0 ? `${criticalExpiring} critical` : `${expiringBatches.length} batches`}
+            tagClass={criticalExpiring > 0 ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'}
           />
-          <div style={{ padding: '8px 20px 14px' }}>
+          <div className="px-4 sm:px-5 pb-3">
             {loading ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, paddingTop: 8 }}>
-                {[1,2,3,4].map(i => <Skeleton key={i} className="h-10 w-full" />)}
-              </div>
+              <div className="flex flex-col gap-2 pt-3">{[1,2,3,4].map(i => <Skeleton key={i} className="h-10 w-full" />)}</div>
             ) : expiringBatches.length === 0 ? (
-              <div style={{ padding: '32px 0', textAlign: 'center', color: '#9ca3af', fontSize: 13 }}>
-                No batches expiring within 90 days
-              </div>
+              <div className="py-8 text-center text-sm text-gray-400">No batches expiring within 90 days</div>
             ) : expiringBatches.map((r, i) => {
               const days = r.days_to_nearest_expiry ?? 0
-              const s = expiryStyle(days)
               return (
-                <div key={`${r.medication_name}-${i}`} style={{
-                  display: 'flex', alignItems: 'center', gap: 10,
-                  padding: '10px 0',
-                  borderBottom: i < expiringBatches.length - 1 ? '1px solid rgba(17,24,39,.08)' : 'none',
-                }}>
-                  <div style={{
-                    width: 7, height: 7, borderRadius: '50%', flexShrink: 0,
-                    background: days <= 21 ? '#dc2626' : days <= 60 ? '#d97706' : '#3b82f6',
-                  }} />
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <p style={{ fontSize: 13, fontWeight: 500, color: '#4b5563', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {r.medication_name}
-                    </p>
-                    <p style={{ fontSize: 11, color: '#9ca3af', marginTop: 1 }}>
-                      {r.available_stock} units remaining
-                    </p>
+                <div
+                  key={`${r.medication_name}-${i}`}
+                  className={`flex items-center gap-3 py-2.5 ${i < expiringBatches.length - 1 ? 'border-b border-black/[0.06]' : ''}`}
+                >
+                  <div
+                    className="h-2 w-2 shrink-0 rounded-full"
+                    style={{ background: days <= 21 ? '#dc2626' : days <= 60 ? '#d97706' : '#3b82f6' }}
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-[13px] font-medium text-gray-600">{r.medication_name}</p>
+                    <p className="text-[11px] text-gray-400 mt-0.5">{r.available_stock} units remaining</p>
                   </div>
-                  <span style={{ ...s, ...TAG_BASE }}>
+                  <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${expiryStyle(days)}`}>
                     {days}d
                   </span>
                 </div>
               )
             })}
           </div>
-        </div>
-
+        </Card>
       </div>
 
-      {/* ── Recent Sales Table ── */}
-      <div style={CARD}>
-        <div style={{ ...CARD_HEAD }}>
+      {/* ── Recent Sales ── */}
+      <Card>
+        <div className="flex items-center justify-between gap-3 px-4 sm:px-5 py-3 sm:py-3.5 border-b border-black/[0.08]">
           <div>
-            <p style={{ fontSize: 13.5, fontWeight: 700, color: '#111827' }}>Recent Sales</p>
-            <p style={{ fontSize: 11.5, color: '#9ca3af', marginTop: 2 }}>Last 6 transactions this week</p>
+            <p className="text-[13.5px] font-bold text-gray-900">Recent Sales</p>
+            <p className="text-[11.5px] text-gray-400 mt-0.5">Last 6 transactions this week</p>
           </div>
-          <Link href="/sales" style={{
-            display: 'flex', alignItems: 'center', gap: 4,
-            fontSize: 12.5, fontWeight: 600, color: '#16a34a',
-          }}>
+          <Link href="/sales" className="flex shrink-0 items-center gap-1 text-[12.5px] font-semibold text-green-700">
             View all <ChevronRight size={13} />
           </Link>
         </div>
 
         {salesLoading ? (
-          <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {[1,2,3,4].map(i => <Skeleton key={i} className="h-11 w-full" />)}
-          </div>
+          <div className="flex flex-col gap-2.5 p-4 sm:p-5">{[1,2,3,4].map(i => <Skeleton key={i} className="h-11 w-full" />)}</div>
         ) : recentSales.length === 0 ? (
-          <div style={{ padding: '40px 20px', textAlign: 'center', color: '#9ca3af' }}>
-            <ShoppingCart size={28} style={{ margin: '0 auto 8px', opacity: 0.3 }} />
-            <p style={{ fontSize: 13 }}>No sales recorded yet</p>
+          <div className="flex flex-col items-center gap-2 py-10 text-gray-400">
+            <ShoppingCart size={28} className="opacity-30" />
+            <p className="text-sm">No sales recorded yet</p>
           </div>
         ) : (
           <>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead>
-                <tr style={{ background: '#f9fafb', borderBottom: '1px solid rgba(17,24,39,.08)' }}>
-                  {['Receipt', 'Cashier', 'Items', 'Total', 'Payment', 'Status'].map((h, i) => (
-                    <th key={h} style={{
-                      padding: '9px 20px 8px',
-                      fontSize: 10.5, fontWeight: 700, letterSpacing: '.07em', textTransform: 'uppercase',
-                      color: '#9ca3af', textAlign: i >= 2 ? 'center' : 'left',
-                    }}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {recentSales.map((sale, i) => {
-                  const pay = payStyle(sale.payment_method)
-                  const done = sale.status === 'completed'
-                  return (
-                    <tr key={sale.id} style={{
-                      borderBottom: i < recentSales.length - 1 ? '1px solid rgba(17,24,39,.06)' : 'none',
-                    }}>
-                      <td style={{ padding: '12px 20px' }}>
-                        <p style={{ fontSize: 12, fontWeight: 700, color: '#111827', fontVariantNumeric: 'tabular-nums' }}>
-                          {sale.sale_number}
-                        </p>
-                        <p style={{ fontSize: 11, color: '#9ca3af', marginTop: 1 }}>
-                          {new Date(sale.created_at).toLocaleTimeString('en-GH', { hour: '2-digit', minute: '2-digit' })}
-                        </p>
-                      </td>
-                      <td style={{ padding: '12px 20px' }}>
-                        <p style={{ fontSize: 13, fontWeight: 600, color: '#111827' }}>
-                          {/* sale doesn't carry cashier name — show payment method channel */}
-                          {sale.payment_method.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
-                        </p>
-                      </td>
-                      <td style={{ padding: '12px 20px', textAlign: 'center' }}>
-                        <span style={{
-                          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                          width: 22, height: 22, borderRadius: 5,
-                          border: '1px solid rgba(17,24,39,.08)', background: '#f9fafb',
-                          fontSize: 12, fontWeight: 700, color: '#111827',
-                        }}>—</span>
-                      </td>
-                      <td style={{ padding: '12px 20px', textAlign: 'center' }}>
-                        <span style={{ fontSize: 13, fontWeight: 700, fontVariantNumeric: 'tabular-nums', color: '#111827' }}>
-                          {formatCurrency(Number(sale.total_amount), sale.currency_code)}
-                        </span>
-                      </td>
-                      <td style={{ padding: '12px 20px', textAlign: 'center' }}>
-                        <span style={{ ...TAG_BASE, background: pay.bg, color: pay.color }}>
-                          {pay.label}
-                        </span>
-                      </td>
-                      <td style={{ padding: '12px 20px', textAlign: 'center' }}>
-                        <span style={{
-                          ...TAG_BASE,
-                          display: 'inline-flex', alignItems: 'center', gap: 4,
-                          background: done ? '#f0fdf4' : '#fff1f1',
-                          color: done ? '#15803d' : '#b91c1c',
-                        }}>
-                          <span style={{ width: 5, height: 5, borderRadius: '50%', background: 'currentColor', display: 'inline-block' }} />
-                          {done ? 'Completed' : sale.status === 'voided' ? 'Voided' : sale.status}
-                        </span>
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-
-            <div style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              padding: '10px 20px', borderTop: '1px solid rgba(17,24,39,.08)',
-              background: '#f9fafb',
-            }}>
-              <span style={{ fontSize: 12, color: '#9ca3af' }}>
-                Showing {recentSales.length} recent transactions
-              </span>
-              <Link href="/sales" style={{ fontSize: 12, fontWeight: 600, color: '#16a34a' }}>
-                View all sales →
-              </Link>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-black/[0.08] bg-gray-50">
+                    {[
+                      { label: 'Receipt', align: 'left', cls: '' },
+                      { label: 'Payment', align: 'left', cls: 'hidden sm:table-cell' },
+                      { label: 'Total', align: 'right', cls: '' },
+                      { label: 'Status', align: 'center', cls: 'hidden sm:table-cell' },
+                    ].map(h => (
+                      <th
+                        key={h.label}
+                        className={`px-4 sm:px-5 py-2.5 text-[10.5px] font-bold uppercase tracking-wide text-gray-400 text-${h.align} ${h.cls}`}
+                      >
+                        {h.label}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {recentSales.map((sale, i) => {
+                    const pay = payStyle(sale.payment_method)
+                    const done = sale.status === 'completed'
+                    return (
+                      <tr key={sale.id} className={i < recentSales.length - 1 ? 'border-b border-black/[0.05]' : ''}>
+                        <td className="px-4 sm:px-5 py-3">
+                          <p className="text-xs font-bold text-gray-900 tabular-nums">{sale.sale_number}</p>
+                          <p className="text-[11px] text-gray-400 mt-0.5">
+                            {new Date(sale.created_at).toLocaleTimeString('en-GH', { hour: '2-digit', minute: '2-digit' })}
+                          </p>
+                        </td>
+                        <td className="hidden sm:table-cell px-4 sm:px-5 py-3">
+                          <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${pay.className}`}>
+                            {pay.label}
+                          </span>
+                        </td>
+                        <td className="px-4 sm:px-5 py-3 text-right">
+                          <span className="text-sm font-bold text-gray-900 tabular-nums">
+                            {formatCurrency(Number(sale.total_amount), sale.currency_code)}
+                          </span>
+                        </td>
+                        <td className="hidden sm:table-cell px-4 sm:px-5 py-3 text-center">
+                          <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${done ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+                            <span className="h-1.5 w-1.5 rounded-full bg-current" />
+                            {done ? 'Completed' : sale.status === 'voided' ? 'Voided' : sale.status}
+                          </span>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <div className="flex items-center justify-between border-t border-black/[0.08] bg-gray-50 px-4 sm:px-5 py-2.5">
+              <span className="text-xs text-gray-400">Showing {recentSales.length} recent transactions</span>
+              <Link href="/sales" className="text-xs font-semibold text-green-700">View all sales →</Link>
             </div>
           </>
         )}
-      </div>
-
+      </Card>
     </div>
   )
 }

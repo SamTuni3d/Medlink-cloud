@@ -199,8 +199,9 @@ export default function SalesPage() {
                   <tr className="border-b text-left text-xs text-muted-foreground">
                     <th className="pb-2 pr-4 font-medium">Sale #</th>
                     <th className="pb-2 pr-4 font-medium">Date</th>
-                    <th className="pb-2 pr-4 font-medium">Customer</th>
-                    <th className="pb-2 pr-4 font-medium">Payment</th>
+                    <th className="pb-2 pr-4 font-medium hidden sm:table-cell">Customer</th>
+                    <th className="pb-2 pr-4 font-medium hidden md:table-cell">Staff</th>
+                    <th className="pb-2 pr-4 font-medium hidden sm:table-cell">Payment</th>
                     <th className="pb-2 pr-4 font-medium text-right">Total</th>
                     <th className="pb-2 pr-4 font-medium">Status</th>
                     <th className="pb-2 font-medium" />
@@ -217,8 +218,9 @@ export default function SalesPage() {
                           hour: '2-digit', minute: '2-digit',
                         })}
                       </td>
-                      <td className="py-3 pr-4">{sale.customer_name ?? '—'}</td>
-                      <td className="py-3 pr-4 text-muted-foreground">{paymentLabel(sale.payment_method)}</td>
+                      <td className="py-3 pr-4 hidden sm:table-cell">{sale.customer_name ?? '—'}</td>
+                      <td className="py-3 pr-4 hidden md:table-cell text-muted-foreground">{sale.cashier_name ?? '—'}</td>
+                      <td className="py-3 pr-4 hidden sm:table-cell text-muted-foreground">{paymentLabel(sale.payment_method)}</td>
                       <td className="py-3 pr-4 text-right tabular-nums font-medium">
                         {formatCurrency(sale.total_amount, sale.currency_code)}
                       </td>
@@ -271,6 +273,10 @@ export default function SalesPage() {
                     <><span>Rx #</span>
                       <span className="text-foreground text-right font-mono">{selectedSale.sale.prescription_number}</span></>
                   )}
+                  <span>Served by</span>
+                  <span className="text-foreground text-right font-medium">
+                    {detailLoading ? '…' : (selectedSale.sale.cashier_name ?? '—')}
+                  </span>
                 </div>
 
                 <hr />

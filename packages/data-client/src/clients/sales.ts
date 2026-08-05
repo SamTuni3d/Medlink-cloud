@@ -62,7 +62,7 @@ export async function getSales(
   try {
     let query = client
       .from('sales')
-      .select('*')
+      .select('*, users!cashier_id(full_name)')
       .eq('branch_id', branchId)
       .order('created_at', { ascending: false })
 
@@ -76,7 +76,13 @@ export async function getSales(
     const { data, error } = await query
     if (error) return err(toAppError(error))
 
-    const parsed = z.array(SaleSchema).safeParse(data)
+    const rows = ((data ?? []) as Record<string, unknown>[]).map(row => {
+      const cashierUser = row['users'] as { full_name: string } | null
+      const { users: _drop, ...rest } = row
+      return { ...rest, cashier_name: cashierUser?.full_name ?? null }
+    })
+
+    const parsed = z.array(SaleSchema).safeParse(rows)
     if (!parsed.success) return err(toAppError(parsed.error))
 
     return ok(parsed.data)
@@ -91,7 +97,7 @@ export async function getSaleById(
 ): Promise<Result<{ sale: Sale; items: SaleItem[] }>> {
   try {
     const [saleResult, itemsResult] = await Promise.all([
-      client.from('sales').select('*').eq('id', id).single(),
+      client.from('sales').select('*, users!cashier_id(full_name)').eq('id', id).single(),
       client
         .from('sale_items')
         .select('*, medications_master(name)')
@@ -101,7 +107,12 @@ export async function getSaleById(
     if (saleResult.error) return err(toAppError(saleResult.error))
     if (itemsResult.error) return err(toAppError(itemsResult.error))
 
-    const saleParsed = SaleSchema.safeParse(saleResult.data)
+    const rawSale = saleResult.data as Record<string, unknown>
+    const cashierUser = rawSale['users'] as { full_name: string } | null
+    const { users: _drop, ...saleRest } = rawSale
+    const saleWithCashier = { ...saleRest, cashier_name: cashierUser?.full_name ?? null }
+
+    const saleParsed = SaleSchema.safeParse(saleWithCashier)
     if (!saleParsed.success) return err(toAppError(saleParsed.error))
 
     // Flatten the nested medications_master join into medication_name

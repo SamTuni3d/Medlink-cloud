@@ -25,6 +25,7 @@ export const SaleSchema = z.object({
   change_given: z.number().nullable(),
   prescription_number: z.string().nullable(),
   customer_name: z.string().nullable(),
+  cashier_name: z.string().nullable().optional(), // populated via join in getSales/getSaleById
   synced_at: z.string().nullable(),
   created_at: z.string(),
   updated_at: z.string(),

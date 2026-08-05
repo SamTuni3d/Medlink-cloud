@@ -20,10 +20,16 @@ import { useAuth } from '@/providers/auth-provider'
 import { useToast } from '@/hooks/use-toast'
 import { createClient } from '@/lib/supabase/client'
 import {
-  getSuppliers, createSupplier, updateSupplier, softDeleteSupplier,
-  getPurchaseOrders, createPurchaseOrder, receivePurchaseOrder,
-  cancelPurchaseOrder, getPurchaseOrderItems, getMedications,
+  getSuppliers, getPurchaseOrders, getPurchaseOrderItems, getMedications,
 } from '@medlink/data-client'
+import {
+  createPurchaseOrderAction,
+  receivePurchaseOrderAction,
+  cancelPurchaseOrderAction,
+  createSupplierAction,
+  updateSupplierAction,
+  softDeleteSupplierAction,
+} from './actions'
 import type {
   Supplier, SupplierInsert, PurchaseOrder, PurchaseOrderItem,
   Medication, POStatus,
@@ -62,12 +68,11 @@ interface POLineItem {
 }
 
 function CreatePOModal({
-  open, onClose, onCreated, suppliers, medications, currency,
-  organizationId, branchId, userId,
+  open, onClose, onCreated, suppliers, medications, currency, branchId,
 }: {
   open: boolean; onClose: () => void; onCreated: () => void
   suppliers: Supplier[]; medications: Medication[]; currency: string
-  organizationId: string; branchId: string; userId: string
+  branchId: string
 }) {
   const [supplierId, setSupplierId] = useState('')
   const [expectedDate, setExpectedDate] = useState('')
@@ -95,8 +100,8 @@ function CreatePOModal({
     if (valid.length === 0) { setFormError('Add at least one item with a medication and quantity.'); return }
     setFormError(null); setSaving(true)
 
-    const result = await createPurchaseOrder(createClient(), {
-      organizationId, branchId, createdBy: userId,
+    const result = await createPurchaseOrderAction({
+      branchId,
       supplierId: supplierId || null,
       notes: notes.trim() || undefined,
       expectedDate: expectedDate || null,
@@ -159,7 +164,6 @@ function CreatePOModal({
             <div className="space-y-2">
               {items.map((item, idx) => (
                 <div key={idx} className="rounded-lg border border-border bg-muted/30 p-3 space-y-2">
-                  {/* Row 1: Medication selector */}
                   <div className="space-y-1">
                     {idx === 0 && <p className="text-xs text-muted-foreground font-medium">Medication</p>}
                     <Select value={item.medicationId} onValueChange={v => updateLine(idx, 'medicationId', v)}>
@@ -173,7 +177,6 @@ function CreatePOModal({
                       </SelectContent>
                     </Select>
                   </div>
-                  {/* Row 2: Qty / Unit Cost / Delete */}
                   <div className="grid grid-cols-12 gap-2 items-end">
                     <div className="col-span-4 space-y-1">
                       {idx === 0 && <p className="text-xs text-muted-foreground font-medium">Qty <span className="text-destructive">*</span></p>}
@@ -193,7 +196,6 @@ function CreatePOModal({
                       <Input className="h-8 text-xs" type="date" value={item.expiryDate} onChange={e => updateLine(idx, 'expiryDate', e.target.value)} />
                     </div>
                   </div>
-                  {/* Row 3: Batch + remove */}
                   <div className="flex gap-2 items-end">
                     <div className="flex-1 space-y-1">
                       {idx === 0 && <p className="text-xs text-muted-foreground font-medium">Batch # (optional)</p>}
@@ -230,11 +232,11 @@ function CreatePOModal({
 // ── Receive PO modal ──────────────────────────────────────────────────────────
 
 function ReceivePOModal({
-  po, items, open, onClose, onReceived, organizationId, branchId, userId, currency,
+  po, items, open, onClose, onReceived, branchId, currency,
 }: {
   po: PurchaseOrder; items: PurchaseOrderItem[]; open: boolean
   onClose: () => void; onReceived: () => void
-  organizationId: string; branchId: string; userId: string; currency: string
+  branchId: string; currency: string
 }) {
   const [quantities, setQuantities] = useState<Record<string, string>>({})
   const [saving, setSaving] = useState(false)
@@ -248,8 +250,9 @@ function ReceivePOModal({
 
   async function handleReceive() {
     setSaving(true)
-    const result = await receivePurchaseOrder(createClient(), po.id, {
-      organizationId, branchId, performedBy: userId,
+    const result = await receivePurchaseOrderAction({
+      poId: po.id,
+      branchId,
       items: items.map(item => ({
         poItemId: item.id,
         medicationId: item.medication_id,
@@ -324,7 +327,7 @@ const EMPTY_SUPPLIER: Omit<SupplierInsert, 'organization_id'> = {
 
 export default function ProcurementPage() {
   const { activeBranch } = useBranch()
-  const { user, organizationId } = useAuth()
+  const { organizationId } = useAuth()
   const { toast } = useToast()
 
   const [tab, setTab] = useState<Tab>('purchase_orders')
@@ -341,7 +344,6 @@ export default function ProcurementPage() {
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<POStatus | 'all'>('all')
 
-  // Supplier CRUD state
   const [showSupplierForm, setShowSupplierForm] = useState(false)
   const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null)
   const [supplierForm, setSupplierForm] = useState(EMPTY_SUPPLIER)
@@ -351,10 +353,11 @@ export default function ProcurementPage() {
   const load = useCallback(async () => {
     if (!activeBranch || !organizationId) { setLoading(false); return }
     setLoading(true)
+    const client = createClient()
     const [poRes, supRes, medRes] = await Promise.all([
-      getPurchaseOrders(createClient(), activeBranch.id),
-      getSuppliers(createClient(), organizationId),
-      getMedications(createClient(), organizationId, { activeOnly: true }),
+      getPurchaseOrders(client, activeBranch.id),
+      getSuppliers(client, organizationId),
+      getMedications(client, organizationId, { activeOnly: true }),
     ])
     if (poRes.ok)  setOrders(poRes.data)
     if (supRes.ok) setSuppliers(supRes.data)
@@ -372,29 +375,27 @@ export default function ProcurementPage() {
   }
 
   async function handleCancelPO(po: PurchaseOrder) {
-    const result = await cancelPurchaseOrder(createClient(), po.id)
+    const result = await cancelPurchaseOrderAction(po.id)
     if (!result.ok) { toast({ title: 'Error', description: result.error.message, variant: 'destructive' }); return }
     toast({ title: 'Order cancelled', description: `${po.po_number} has been cancelled.` })
     void load()
   }
 
   async function handleSaveSupplier() {
-    if (!organizationId) return
     if (!supplierForm.name.trim()) { setSupplierFormError('Supplier name is required'); return }
     setSavingSupplier(true); setSupplierFormError(null)
 
-    const input: SupplierInsert = {
-      organization_id: organizationId,
+    const body = {
       name: supplierForm.name.trim(),
-      contact_name: supplierForm.contact_name?.trim() || null,
-      phone: supplierForm.phone?.trim() || null,
-      email: supplierForm.email?.trim() || null,
-      address: supplierForm.address?.trim() || null,
+      contact_name: supplierForm.contact_name ?? '',
+      phone: supplierForm.phone ?? '',
+      email: supplierForm.email ?? '',
+      address: supplierForm.address ?? '',
     }
 
     const result = editingSupplier
-      ? await updateSupplier(createClient(), editingSupplier.id, input)
-      : await createSupplier(createClient(), input)
+      ? await updateSupplierAction({ id: editingSupplier.id, ...body })
+      : await createSupplierAction(body)
 
     setSavingSupplier(false)
     if (!result.ok) { setSupplierFormError(result.error.message); return }
@@ -404,7 +405,7 @@ export default function ProcurementPage() {
 
   async function handleDeleteSupplier(id: string) {
     if (!confirm('Remove this supplier?')) return
-    const result = await softDeleteSupplier(createClient(), id)
+    const result = await softDeleteSupplierAction(id)
     if (result.ok) setSuppliers(p => p.filter(s => s.id !== id))
     else toast({ title: 'Error', description: result.error.message, variant: 'destructive' })
   }
@@ -417,7 +418,6 @@ export default function ProcurementPage() {
   }), [orders, search, statusFilter])
 
   const currency = medications[0]?.currency_code ?? 'GHS'
-  // medications_master rows carry currency_code; fall back to GHS (Phase 1 market)
   const activePOs = orders.filter(o => ['ordered', 'partial'].includes(o.status)).length
 
   return (
@@ -618,10 +618,16 @@ export default function ProcurementPage() {
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center justify-end gap-1">
-                        <button onClick={() => { setEditingSupplier(s); setSupplierForm({ name: s.name, contact_name: s.contact_name ?? '', phone: s.phone ?? '', email: s.email ?? '', address: s.address ?? '' }); setShowSupplierForm(true) }} className="rounded p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors">
+                        <button
+                          onClick={() => { setEditingSupplier(s); setSupplierForm({ name: s.name, contact_name: s.contact_name ?? '', phone: s.phone ?? '', email: s.email ?? '', address: s.address ?? '' }); setShowSupplierForm(true) }}
+                          className="rounded p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                        >
                           <Pencil className="h-4 w-4" />
                         </button>
-                        <button onClick={() => void handleDeleteSupplier(s.id)} className="rounded p-1.5 text-muted-foreground hover:bg-red-50 hover:text-red-600 transition-colors">
+                        <button
+                          onClick={() => void handleDeleteSupplier(s.id)}
+                          className="rounded p-1.5 text-muted-foreground hover:bg-red-50 hover:text-red-600 transition-colors"
+                        >
                           <Trash2 className="h-4 w-4" />
                         </button>
                       </div>
@@ -635,21 +641,21 @@ export default function ProcurementPage() {
       )}
 
       {/* Create PO modal */}
-      {activeBranch && organizationId && user && (
+      {activeBranch && (
         <CreatePOModal
           open={showCreatePO} onClose={() => setShowCreatePO(false)} onCreated={() => void load()}
           suppliers={suppliers} medications={medications} currency={currency}
-          organizationId={organizationId} branchId={activeBranch.id} userId={user.id}
+          branchId={activeBranch.id}
         />
       )}
 
       {/* Receive PO modal */}
-      {receivePO && activeBranch && organizationId && user && (
+      {receivePO && activeBranch && (
         <ReceivePOModal
           po={receivePO} items={receivePOItems} open={!!receivePO}
           onClose={() => { setReceivePO(null); setReceivePOItems([]) }}
           onReceived={() => void load()}
-          organizationId={organizationId} branchId={activeBranch.id} userId={user.id} currency={currency}
+          branchId={activeBranch.id} currency={currency}
         />
       )}
 
