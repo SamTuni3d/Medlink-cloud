@@ -15,15 +15,17 @@ import {
   Camera,
   CameraOff,
   X,
-  AlertCircle,
+  LogOut,
+  User,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from '@/components/ui/dialog'
+import { signOutAction } from '@/app/(app)/actions'
 import { useCart } from '@/hooks/useCart'
 import { usePosData } from '@/hooks/usePosData'
 import { useSyncQueue } from '@/hooks/useSyncQueue'
@@ -478,18 +480,13 @@ export default function POSPage() {
     currencyCode: string
   }>(null)
   const [isCompleting, setIsCompleting] = useState(false)
-  const [showSharedWarning, setShowSharedWarning] = useState(false)
+  const [showSignOutConfirm, setShowSignOutConfirm] = useState(false)
+  const [signingOut, setSigningOut] = useState(false)
 
-  // Show shared-device warning once per session (hide after dismiss)
-  useEffect(() => {
-    if (!sessionStorage.getItem('pos_shared_warning_dismissed')) {
-      setShowSharedWarning(true)
-    }
-  }, [])
-
-  function dismissSharedWarning() {
-    sessionStorage.setItem('pos_shared_warning_dismissed', '1')
-    setShowSharedWarning(false)
+  async function handleSignOut() {
+    setSigningOut(true)
+    await signOutAction()
+    // signOutAction redirects to /login — no further state needed
   }
 
   // Auto-focus the barcode input when the page mounts (works with USB scanners)
@@ -700,17 +697,23 @@ export default function POSPage() {
         >
           <RefreshCw className="h-4 w-4" />
         </Button>
-      </div>
 
-      {showSharedWarning && (
-        <div className="flex items-center gap-2 border-b bg-amber-50 dark:bg-amber-950/40 px-4 py-2 text-sm text-amber-800 dark:text-amber-300">
-          <AlertCircle className="h-4 w-4 shrink-0" />
-          <span>On a shared device? Remember to sign out when your shift ends — sales data is cached locally in the browser.</span>
-          <button onClick={dismissSharedWarning} className="ml-auto shrink-0 rounded p-0.5 hover:bg-amber-100 dark:hover:bg-amber-900">
-            <X className="h-3.5 w-3.5" />
+        {/* Shift user + sign-out — always visible so any cashier can end their shift */}
+        <div className="flex items-center gap-1.5 rounded-lg border bg-muted/40 px-2.5 py-1">
+          <User className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+          <span className="max-w-[140px] truncate text-xs font-medium">
+            {(user?.user_metadata?.full_name as string | undefined) ?? user?.email ?? 'Cashier'}
+          </span>
+          <button
+            onClick={() => setShowSignOutConfirm(true)}
+            className="ml-1 flex items-center gap-1 rounded px-1.5 py-0.5 text-xs text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
+            title="Sign out / end shift"
+          >
+            <LogOut className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Sign out</span>
           </button>
         </div>
-      )}
+      </div>
 
       <div className="flex flex-1 overflow-hidden">
         {/* Left — product search */}
@@ -1081,6 +1084,32 @@ export default function POSPage() {
           onClose={handleCloseReceipt}
         />
       )}
+
+      {/* Sign-out / end-shift confirmation */}
+      <Dialog open={showSignOutConfirm} onOpenChange={setShowSignOutConfirm}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <LogOut className="h-4 w-4 text-destructive" />
+              End shift &amp; sign out?
+            </DialogTitle>
+            <DialogDescription>
+              {pendingCount > 0
+                ? `You have ${pendingCount} sale${pendingCount !== 1 ? 's' : ''} waiting to sync. They are saved locally and will upload automatically when the next cashier signs in and goes online.`
+                : 'Any unsynced sales are saved locally and will upload when you next sign in.'}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setShowSignOutConfirm(false)} disabled={signingOut}>
+              Stay signed in
+            </Button>
+            <Button variant="destructive" onClick={handleSignOut} disabled={signingOut}>
+              {signingOut ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <LogOut className="mr-2 h-4 w-4" />}
+              Sign out
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
