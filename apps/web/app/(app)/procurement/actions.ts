@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
+import { requireAuth, requireRole } from '@/lib/auth/requireRole'
 import {
   createPurchaseOrder,
   receivePurchaseOrder,
@@ -16,6 +17,9 @@ import type { Supplier } from '@medlink/data-client'
 type ActionResult<T = void> =
   | { ok: true; data: T }
   | { ok: false; error: { code: string; message: string } }
+
+const PO_ROLES     = ['inventory_manager', 'branch_manager', 'org_admin', 'super_admin']
+const CANCEL_ROLES = ['branch_manager', 'org_admin', 'super_admin']
 
 async function resolveSession() {
   const client = await createClient()
@@ -59,6 +63,9 @@ export async function createPurchaseOrderAction(
   const session = await resolveSession()
   if (!session) return { ok: false, error: { code: 'UNAUTHORIZED', message: 'Not authenticated' } }
 
+  const roleCheck = await requireRole(session.client, session.userId, PO_ROLES)
+  if (!roleCheck.ok) return roleCheck
+
   const result = await createPurchaseOrder(session.client, {
     organizationId: session.organizationId,
     branchId: parsed.data.branchId,
@@ -100,6 +107,9 @@ export async function receivePurchaseOrderAction(
   const session = await resolveSession()
   if (!session) return { ok: false, error: { code: 'UNAUTHORIZED', message: 'Not authenticated' } }
 
+  const roleCheck = await requireRole(session.client, session.userId, PO_ROLES)
+  if (!roleCheck.ok) return roleCheck
+
   const result = await receivePurchaseOrder(session.client, parsed.data.poId, {
     organizationId: session.organizationId,
     branchId: parsed.data.branchId,
@@ -116,8 +126,12 @@ export async function receivePurchaseOrderAction(
 export async function cancelPurchaseOrderAction(poId: string): Promise<ActionResult> {
   if (!poId) return { ok: false, error: { code: 'VALIDATION_ERROR', message: 'PO ID required' } }
   const client = await createClient()
-  const { data: { user } } = await client.auth.getUser()
-  if (!user) return { ok: false, error: { code: 'UNAUTHORIZED', message: 'Not authenticated' } }
+
+  const auth = await requireAuth(client)
+  if (!auth.ok) return auth
+
+  const roleCheck = await requireRole(client, auth.userId, CANCEL_ROLES)
+  if (!roleCheck.ok) return roleCheck
 
   const result = await cancelPurchaseOrder(client, poId)
   if (!result.ok) return { ok: false, error: result.error }

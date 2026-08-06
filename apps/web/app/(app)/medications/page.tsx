@@ -419,7 +419,7 @@ function AddCustomDialog({
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function MedicationsPage() {
-  const { organizationId, user } = useAuth()
+  const { organizationId } = useAuth()
   const { activeBranch, loading: branchLoading } = useBranch()
   const { toast } = useToast()
 
@@ -715,7 +715,6 @@ export default function MedicationsPage() {
           }}
           organizationId={organizationId}
           branchId={activeBranch.id}
-          userId={user?.id ?? ''}
           currencyCode="GHS"
         />
       )}

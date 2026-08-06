@@ -31,7 +31,6 @@ interface ImportFromLibraryModalProps {
   onImported: (count: number) => void
   organizationId: string
   branchId: string
-  userId: string
   currencyCode: string
   /** When set, the modal opens with this library entry pre-selected (from barcode scan) */
   preselectId?: string | null
@@ -49,7 +48,7 @@ type Step = 'browse' | 'prices'
 
 export default function ImportFromLibraryModal({
   open, onClose, onImported,
-  organizationId, branchId, userId, currencyCode,
+  organizationId, branchId, currencyCode,
   preselectId,
 }: ImportFromLibraryModalProps) {
   const [step, setStep]             = useState<Step>('browse')
@@ -174,7 +173,7 @@ export default function ImportFromLibraryModal({
     }))
 
     const result = await importFromLibraryAction({
-      organizationId, branchId, userId, currencyCode, items,
+      organizationId, branchId, currencyCode, items,
     })
 
     setSaving(false)

@@ -102,7 +102,7 @@ export default function SalesPage() {
   async function handleVoid() {
     if (!voidTarget || !user) return
     setVoiding(true)
-    const result = await voidSaleAction({ saleId: voidTarget.id, voidedBy: user.id })
+    const result = await voidSaleAction({ saleId: voidTarget.id })
     setVoiding(false)
     setVoidTarget(null)
     if (!result.ok) {

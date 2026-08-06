@@ -106,7 +106,6 @@ function AddMedicationModal({
   onAdded,
   organizationId,
   branchId,
-  userId,
   currency,
   initialBarcode,
 }: {
@@ -115,7 +114,6 @@ function AddMedicationModal({
   onAdded: () => void
   organizationId: string
   branchId: string
-  userId: string
   currency: string
   initialBarcode?: string
 }) {
@@ -144,7 +142,6 @@ function AddMedicationModal({
     const result = await addMedicationAction({
       organizationId,
       branchId,
-      performedBy: userId,
       name: form.name.trim(),
       genericName: form.genericName.trim() || null,
       brandName: form.brandName.trim() || null,
@@ -382,7 +379,7 @@ function AddMedicationModal({
 function EditMedicationModal({
   open, onClose, onSaved,
   row, currency,
-  organizationId, branchId, userId,
+  organizationId, branchId,
 }: {
   open: boolean
   onClose: () => void
@@ -391,7 +388,6 @@ function EditMedicationModal({
   currency: string
   organizationId: string
   branchId: string
-  userId: string
 }) {
   const [price, setPrice]        = useState(String(row.selling_price))
   const [newQty, setNewQty]      = useState(String(row.available_stock))
@@ -444,7 +440,6 @@ function EditMedicationModal({
         medicationId:   row.medication_id,
         branchId,
         organizationId,
-        performedBy:    userId,
         qty:            delta,
         expiryDate:     expiryDate || null,
         notes:          'Manual stock receipt from inventory',
@@ -454,7 +449,6 @@ function EditMedicationModal({
         medicationId:   row.medication_id,
         branchId,
         organizationId,
-        performedBy:    userId,
         delta,
         notes:          'Manual stock adjustment from inventory',
       }))
@@ -990,7 +984,6 @@ export default function InventoryPage() {
           }}
           organizationId={organizationId}
           branchId={activeBranch.id}
-          userId={user.id}
           currencyCode={currency}
         />
       )}
@@ -1003,7 +996,6 @@ export default function InventoryPage() {
           onAdded={() => void load()}
           organizationId={organizationId}
           branchId={activeBranch.id}
-          userId={user.id}
           currency={currency}
           initialBarcode={prescannedBarcode ?? undefined}
         />
@@ -1037,7 +1029,6 @@ export default function InventoryPage() {
           currency={currency}
           organizationId={organizationId}
           branchId={activeBranch.id}
-          userId={user.id}
         />
       )}
 

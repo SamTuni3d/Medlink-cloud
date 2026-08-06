@@ -14,11 +14,10 @@ import { approveSuggestionAction, rejectSuggestionAction } from '@/app/(app)/inv
 import type { LibraryEntry } from '@medlink/data-client'
 
 interface Props {
-  userId: string
   initialSuggestions: LibraryEntry[]
 }
 
-export default function LibraryReviewClient({ userId, initialSuggestions }: Props) {
+export default function LibraryReviewClient({ initialSuggestions }: Props) {
   const [suggestions, setSuggestions] = useState(initialSuggestions)
   const [rejectModal, setRejectModal] = useState<LibraryEntry | null>(null)
   const [rejectNote, setRejectNote]   = useState('')
@@ -28,7 +27,7 @@ export default function LibraryReviewClient({ userId, initialSuggestions }: Prop
 
   async function approve(entry: LibraryEntry) {
     setBusyId(entry.id)
-    const result = await approveSuggestionAction({ libraryId: entry.id, reviewerId: userId })
+    const result = await approveSuggestionAction({ libraryId: entry.id })
     setBusyId(null)
     if (!result.ok) {
       toast({ title: 'Error', description: result.error.message, variant: 'destructive' })
@@ -48,7 +47,6 @@ export default function LibraryReviewClient({ userId, initialSuggestions }: Prop
     setSaving(true)
     const result = await rejectSuggestionAction({
       libraryId: rejectModal.id,
-      reviewerId: userId,
       note: rejectNote,
     })
     setSaving(false)

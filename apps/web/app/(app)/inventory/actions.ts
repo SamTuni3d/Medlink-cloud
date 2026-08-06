@@ -3,11 +3,15 @@
 import { z } from 'zod'
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
+import { requireAuth, requireRole } from '@/lib/auth/requireRole'
 import { addMedicationWithStock, updateMedication, searchLibraryByBarcode } from '@medlink/data-client'
 
 export type ActionResult<T = void> =
   | { ok: true; data: T }
   | { ok: false; error: { code: string; message: string } }
+
+const STOCK_ROLES    = ['pharmacist', 'inventory_manager', 'branch_manager', 'org_admin', 'super_admin']
+const RECEIVE_ROLES  = ['inventory_manager', 'branch_manager', 'org_admin', 'super_admin']
 
 // ── Update selling price ───────────────────────────────────────────────────────
 
@@ -37,8 +41,6 @@ export async function updateMedicationPriceAction(
 }
 
 // ── Ensure every org medication has an inventory row for the branch ───────────
-// Idempotent repair: called on every inventory page load so any rows that were
-// silently skipped (e.g. wrong onConflict in an older import) get created now.
 
 export async function ensureBranchInventoryAction(
   organizationId: string,
@@ -75,7 +77,6 @@ export async function ensureBranchInventoryAction(
 const AddMedicationSchema = z.object({
   organizationId: z.string().uuid(),
   branchId:       z.string().uuid(),
-  performedBy:    z.string().uuid(),
   name:           z.string().min(1, 'Product name is required.'),
   genericName:    z.string().nullable().optional(),
   brandName:      z.string().nullable().optional(),
@@ -100,10 +101,18 @@ export async function addMedicationAction(
     return { ok: false, error: { code: 'VALIDATION_ERROR', message: parsed.error.issues[0]?.message ?? 'Invalid input.' } }
   }
 
-  const result = await addMedicationWithStock(await createClient(), {
+  const client = await createClient()
+
+  const auth = await requireAuth(client)
+  if (!auth.ok) return auth
+
+  const roleCheck = await requireRole(client, auth.userId, STOCK_ROLES)
+  if (!roleCheck.ok) return roleCheck
+
+  const result = await addMedicationWithStock(client, {
     organizationId: parsed.data.organizationId,
     branchId:       parsed.data.branchId,
-    performedBy:    parsed.data.performedBy,
+    performedBy:    auth.userId,
     name:           parsed.data.name,
     genericName:    parsed.data.genericName,
     brandName:      parsed.data.brandName,
@@ -162,7 +171,6 @@ const AdjustStockSchema = z.object({
   medicationId:   z.string().uuid(),
   branchId:       z.string().uuid(),
   organizationId: z.string().uuid(),
-  performedBy:    z.string().uuid(),
   delta:          z.number().int(),
   notes:          z.string().default('Manual stock adjustment'),
 })
@@ -176,15 +184,22 @@ export async function adjustStockAction(
   }
   if (parsed.data.delta === 0) return { ok: true, data: undefined }
 
-  const supabase = await createClient()
-  const { error } = await supabase.from('stock_movements').insert({
+  const client = await createClient()
+
+  const auth = await requireAuth(client)
+  if (!auth.ok) return auth
+
+  const roleCheck = await requireRole(client, auth.userId, STOCK_ROLES)
+  if (!roleCheck.ok) return roleCheck
+
+  const { error } = await client.from('stock_movements').insert({
     organization_id: parsed.data.organizationId,
     branch_id:       parsed.data.branchId,
     medication_id:   parsed.data.medicationId,
     movement_type:   'adjustment',
     delta:           parsed.data.delta,
     notes:           parsed.data.notes,
-    performed_by:    parsed.data.performedBy,
+    performed_by:    auth.userId,
   })
 
   if (error) return { ok: false, error: { code: 'DB_ERROR', message: error.message } }
@@ -194,13 +209,12 @@ export async function adjustStockAction(
   return { ok: true, data: undefined }
 }
 
-// ── Receive stock — creates a batch + movement (used when adding stock with expiry) ──
+// ── Receive stock — creates a batch + movement ────────────────────────────────
 
 const ReceiveStockSchema = z.object({
   medicationId:   z.string().uuid(),
   branchId:       z.string().uuid(),
   organizationId: z.string().uuid(),
-  performedBy:    z.string().uuid(),
   qty:            z.number().int().min(1),
   expiryDate:     z.string().nullable().optional(),
   notes:          z.string().default('Manual stock receipt'),
@@ -214,9 +228,15 @@ export async function receiveStockAction(
     return { ok: false, error: { code: 'VALIDATION_ERROR', message: parsed.error.issues[0]?.message ?? 'Invalid input.' } }
   }
 
-  const supabase = await createClient()
+  const client = await createClient()
 
-  const { data: batch, error: batchErr } = await supabase
+  const auth = await requireAuth(client)
+  if (!auth.ok) return auth
+
+  const roleCheck = await requireRole(client, auth.userId, RECEIVE_ROLES)
+  if (!roleCheck.ok) return roleCheck
+
+  const { data: batch, error: batchErr } = await client
     .from('inventory_batches')
     .insert({
       organization_id:    parsed.data.organizationId,
@@ -227,7 +247,7 @@ export async function receiveStockAction(
       quantity_remaining: parsed.data.qty,
       cost_price:         0,
       currency_code:      'GHS',
-      created_by:         parsed.data.performedBy,
+      created_by:         auth.userId,
       ...(parsed.data.expiryDate ? { expiry_date: parsed.data.expiryDate } : {}),
     })
     .select('id')
@@ -237,7 +257,7 @@ export async function receiveStockAction(
     return { ok: false, error: { code: 'DB_ERROR', message: batchErr?.message ?? 'Failed to create batch' } }
   }
 
-  const { error: movErr } = await supabase.from('stock_movements').insert({
+  const { error: movErr } = await client.from('stock_movements').insert({
     organization_id: parsed.data.organizationId,
     branch_id:       parsed.data.branchId,
     medication_id:   parsed.data.medicationId,
@@ -245,7 +265,7 @@ export async function receiveStockAction(
     movement_type:   'receipt',
     delta:           parsed.data.qty,
     notes:           parsed.data.notes,
-    performed_by:    parsed.data.performedBy,
+    performed_by:    auth.userId,
   })
 
   if (movErr) return { ok: false, error: { code: 'DB_ERROR', message: movErr.message } }
@@ -256,8 +276,6 @@ export async function receiveStockAction(
 }
 
 // ── Barcode lookup ────────────────────────────────────────────────────────────
-// Searches medications_master (already imported) then medications_library.
-// Returns where the barcode was found so the UI can open the right modal.
 
 export type BarcodeLookupResult =
   | { foundIn: 'master'; medicationId: string; name: string }
@@ -276,7 +294,6 @@ export async function lookupBarcodeAction(
 
   const supabase = await createClient()
 
-  // 1. Check if already imported by this org
   const { data: existing } = await supabase
     .from('medications_master')
     .select('id, name')
@@ -289,7 +306,6 @@ export async function lookupBarcodeAction(
     return { ok: true, data: { foundIn: 'master', medicationId: existing.id as string, name: existing.name as string } }
   }
 
-  // 2. Check global library
   const libResult = await searchLibraryByBarcode(supabase, parsedBarcode.data)
   if (!libResult.ok) return { ok: false, error: libResult.error }
 
@@ -300,7 +316,7 @@ export async function lookupBarcodeAction(
   return { ok: true, data: { foundIn: null } }
 }
 
-// ── Deactivate medication (soft delete — hides from inventory + POS) ──────────
+// ── Deactivate medication (soft delete) ──────────────────────────────────────
 
 export async function deactivateMedicationAction(
   medicationId: string

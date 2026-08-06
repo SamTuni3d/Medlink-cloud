@@ -25,5 +25,5 @@ export default async function AdminLibraryPage() {
   const result = await getPendingSuggestions(supabase)
   const suggestions = result.ok ? result.data : []
 
-  return <LibraryReviewClient userId={user.id} initialSuggestions={suggestions} />
+  return <LibraryReviewClient initialSuggestions={suggestions} />
 }
