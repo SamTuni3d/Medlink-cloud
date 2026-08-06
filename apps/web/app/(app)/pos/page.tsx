@@ -15,6 +15,7 @@ import {
   Camera,
   CameraOff,
   X,
+  AlertCircle,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -477,6 +478,19 @@ export default function POSPage() {
     currencyCode: string
   }>(null)
   const [isCompleting, setIsCompleting] = useState(false)
+  const [showSharedWarning, setShowSharedWarning] = useState(false)
+
+  // Show shared-device warning once per session (hide after dismiss)
+  useEffect(() => {
+    if (!sessionStorage.getItem('pos_shared_warning_dismissed')) {
+      setShowSharedWarning(true)
+    }
+  }, [])
+
+  function dismissSharedWarning() {
+    sessionStorage.setItem('pos_shared_warning_dismissed', '1')
+    setShowSharedWarning(false)
+  }
 
   // Auto-focus the barcode input when the page mounts (works with USB scanners)
   useEffect(() => {
@@ -687,6 +701,16 @@ export default function POSPage() {
           <RefreshCw className="h-4 w-4" />
         </Button>
       </div>
+
+      {showSharedWarning && (
+        <div className="flex items-center gap-2 border-b bg-amber-50 dark:bg-amber-950/40 px-4 py-2 text-sm text-amber-800 dark:text-amber-300">
+          <AlertCircle className="h-4 w-4 shrink-0" />
+          <span>On a shared device? Remember to sign out when your shift ends — sales data is cached locally in the browser.</span>
+          <button onClick={dismissSharedWarning} className="ml-auto shrink-0 rounded p-0.5 hover:bg-amber-100 dark:hover:bg-amber-900">
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      )}
 
       <div className="flex flex-1 overflow-hidden">
         {/* Left — product search */}

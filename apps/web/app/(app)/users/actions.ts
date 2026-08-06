@@ -15,13 +15,15 @@ const BRANCH_SCOPED_ROLES = new Set([
   'branch_manager', 'pharmacist', 'cashier', 'inventory_manager', 'auditor',
 ])
 
+const INVITE_ROLES = ['org_admin', 'super_admin']
+const INVITE_RATE_LIMIT = 10 // max invitations per org per hour
+
 const InviteStaffSchema = z.object({
   fullName:       z.string().min(1, 'Full name is required'),
   email:          z.string().email('Invalid email address'),
   role:           z.enum(['org_admin', 'branch_manager', 'pharmacist', 'cashier', 'inventory_manager', 'auditor', 'super_admin']),
   branchId:       z.string().uuid().nullable(),
   organizationId: z.string().uuid(),
-  invitedBy:      z.string().uuid(),
 })
 
 export async function inviteStaffAction(
@@ -32,7 +34,28 @@ export async function inviteStaffAction(
     return { ok: false, error: { code: 'VALIDATION_ERROR', message: parsed.error.issues[0]?.message ?? 'Invalid input.' } }
   }
 
-  const { fullName, email, role, branchId, organizationId, invitedBy } = parsed.data
+  const { fullName, email, role, branchId, organizationId } = parsed.data
+
+  // Derive the caller from the server-side session — never trust client-supplied identity
+  const supabase = await createClient()
+  const { data: { user: caller }, error: authErr } = await supabase.auth.getUser()
+  if (authErr || !caller) {
+    return { ok: false, error: { code: 'UNAUTHORIZED', message: 'Not authenticated.' } }
+  }
+
+  // Only org_admin and super_admin may invite users
+  const { data: callerRoles } = await supabase
+    .from('user_roles')
+    .select('roles(name)')
+    .eq('user_id', caller.id)
+  const callerRoleNames = ((callerRoles ?? []) as { roles: { name: string } | { name: string }[] | null }[])
+    .flatMap(r => {
+      if (!r.roles) return []
+      return Array.isArray(r.roles) ? r.roles.map(x => x.name) : [r.roles.name]
+    })
+  if (!INVITE_ROLES.some(r => callerRoleNames.includes(r))) {
+    return { ok: false, error: { code: 'UNAUTHORIZED', message: 'Only org admins can invite staff.' } }
+  }
 
   // Branch-scoped roles require a branch
   const needsBranch = BRANCH_SCOPED_ROLES.has(role)
@@ -45,6 +68,17 @@ export async function inviteStaffAction(
     admin = createAdminClient()
   } catch {
     return { ok: false, error: { code: 'UNKNOWN_ERROR', message: 'Server configuration error.' } }
+  }
+
+  // Rate limit: no more than INVITE_RATE_LIMIT invitations per org in the last hour
+  const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString()
+  const { count: recentCount } = await admin
+    .from('users')
+    .select('id', { count: 'exact', head: true })
+    .eq('organization_id', organizationId)
+    .gte('created_at', oneHourAgo)
+  if ((recentCount ?? 0) >= INVITE_RATE_LIMIT) {
+    return { ok: false, error: { code: 'CONFLICT', message: 'Too many invitations sent recently. Please wait before inviting more staff.' } }
   }
 
   // 1. Send invitation email — Supabase delivers a magic link; user sets their password on first login
@@ -84,7 +118,7 @@ export async function inviteStaffAction(
     organization_id: organizationId,
     role_id:         roleResult.data,
     branch_id:       needsBranch ? branchId : null,
-    granted_by:      invitedBy,
+    granted_by:      caller.id,
   })
 
   if (!assignResult.ok) {

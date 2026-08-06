@@ -252,7 +252,6 @@ export default function UsersPage() {
       role:           inviteForm.role as RoleName & string,
       branchId:       inviteForm.branchId || null,
       organizationId,
-      invitedBy:      currentUser.id,
     })
     setInviting(false)
     if (!result.ok) { setInviteError(result.error.message); return }
