@@ -133,7 +133,7 @@ export async function getStockTakes(
   try {
     const { data, error } = await client
       .from('stock_takes')
-      .select('*')
+      .select('id, organization_id, branch_id, performed_by, notes, item_count, discrepancy_count, completed_at, created_at')
       .eq('branch_id', branchId)
       .order('completed_at', { ascending: false })
       .limit(limit)

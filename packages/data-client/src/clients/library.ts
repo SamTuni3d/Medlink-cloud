@@ -39,7 +39,7 @@ export async function searchLibrary(
 
     let q = client
       .from('medications_library')
-      .select('*')
+      .select('id, name, generic_name, brand_name, category, dosage_form, strength, barcode, unit_of_measure, requires_prescription, source, status, times_used, nafdac_number, ghana_fda_code, tags, is_verified, suggested_by, reviewed_by, reviewed_at, rejection_note, created_at')
       .eq('status', 'approved')
       .order('name', { ascending: true })
       .range(offset, offset + limit - 1)
@@ -164,7 +164,7 @@ export async function searchLibraryByBarcode(
   try {
     const { data, error } = await client
       .from('medications_library')
-      .select('*')
+      .select('id, name, generic_name, brand_name, category, dosage_form, strength, barcode, unit_of_measure, requires_prescription, source, status, times_used, nafdac_number, ghana_fda_code, tags, is_verified, suggested_by, reviewed_by, reviewed_at, rejection_note, created_at')
       .eq('status', 'approved')
       .eq('barcode', barcode.trim())
       .maybeSingle()
@@ -201,7 +201,7 @@ export async function importFromLibrary(
       // Fetch library entry
       const { data: libEntry, error: libErr } = await client
         .from('medications_library')
-        .select('*')
+        .select('id, name, generic_name, brand_name, category, dosage_form, strength, barcode, unit_of_measure, requires_prescription, source, status, times_used, nafdac_number, ghana_fda_code, tags, is_verified, suggested_by, reviewed_by, reviewed_at, rejection_note, created_at')
         .eq('id', item.libraryId)
         .single()
 

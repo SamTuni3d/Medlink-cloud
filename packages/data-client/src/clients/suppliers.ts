@@ -16,7 +16,7 @@ export async function getSuppliers(
   try {
     const { data, error } = await client
       .from('suppliers')
-      .select('*')
+      .select('id, organization_id, name, contact_name, phone, email, address, is_active, created_at, updated_at')
       .eq('organization_id', organizationId)
       .eq('is_active', true)
       .order('name', { ascending: true })

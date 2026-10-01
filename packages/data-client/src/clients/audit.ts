@@ -29,7 +29,7 @@ export async function getAuditLog(
 
     let query = client
       .from('audit_logs')
-      .select('*')
+      .select('id, organization_id, branch_id, actor_id, action, table_name, record_id, old_value, new_value, ip_address, created_at')
       .eq('organization_id', organizationId)
       .order('created_at', { ascending: false })
       .limit(limit)

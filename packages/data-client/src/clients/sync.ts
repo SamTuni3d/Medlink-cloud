@@ -19,7 +19,7 @@ export async function getSyncCursor(
   try {
     const { data, error } = await client
       .from('sync_cursors')
-      .select('*')
+      .select('id, device_id, organization_id, branch_id, table_name, last_cursor, updated_at')
       .eq('device_id', deviceId)
       .eq('table_name', tableName)
       .maybeSingle()

@@ -19,7 +19,7 @@ export async function listUsers(
   try {
     let query = client
       .from('users')
-      .select('*')
+      .select('id, organization_id, default_branch_id, full_name, email, phone, is_active, created_at, updated_at')
       .eq('organization_id', organizationId)
       .order('full_name', { ascending: true })
 
@@ -50,7 +50,7 @@ export async function getUserById(
   try {
     const { data, error } = await client
       .from('users')
-      .select('*')
+      .select('id, organization_id, default_branch_id, full_name, email, phone, is_active, created_at, updated_at')
       .eq('id', id)
       .single()
 
@@ -134,7 +134,7 @@ export async function listUsersWithRoles(
   try {
     const { data, error } = await client
       .from('users')
-      .select('*, user_roles!user_roles_user_id_fkey(role_id, branch_id, roles(name))')
+      .select('id, organization_id, default_branch_id, full_name, email, phone, is_active, created_at, updated_at, user_roles!user_roles_user_id_fkey(role_id, branch_id, roles(name))')
       .eq('organization_id', organizationId)
       .order('full_name', { ascending: true })
 
@@ -212,7 +212,7 @@ export async function getUserRoles(
   try {
     const { data, error } = await client
       .from('user_roles')
-      .select('*, roles(name)')
+      .select('id, organization_id, user_id, role_id, branch_id, granted_by, granted_at, roles(name)')
       .eq('user_id', userId)
       .order('granted_at', { ascending: false })
 

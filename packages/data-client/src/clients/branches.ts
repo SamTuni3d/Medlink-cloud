@@ -41,7 +41,7 @@ export async function getBranches(
   try {
     let query = client
       .from('branches')
-      .select('*')
+      .select('id, organization_id, name, address, phone, is_active, created_at')
       .eq('organization_id', organizationId)
       .order('name', { ascending: true })
 
@@ -68,7 +68,7 @@ export async function getBranchById(
   try {
     const { data, error } = await client
       .from('branches')
-      .select('*')
+      .select('id, organization_id, name, address, phone, is_active, created_at')
       .eq('id', id)
       .single()
 

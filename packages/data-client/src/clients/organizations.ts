@@ -17,7 +17,7 @@ export async function getOrganization(
   try {
     const { data, error } = await client
       .from('organizations')
-      .select('*')
+      .select('id, name, registration_number, country, city, currency_code, subscription_tier, created_at')
       .eq('id', id)
       .single()
 

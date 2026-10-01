@@ -27,7 +27,7 @@ export async function getMedications(
   try {
     let query = client
       .from('medications_master')
-      .select('*')
+      .select('id, organization_id, name, generic_name, brand_name, dosage_form, strength, unit_of_measure, barcode, category, requires_prescription, reorder_point, reorder_quantity, selling_price, currency_code, is_active, updated_at, updated_seq')
       .eq('organization_id', organizationId)
       .order('name', { ascending: true })
 
@@ -63,7 +63,7 @@ export async function getMedicationById(
   try {
     const { data, error } = await client
       .from('medications_master')
-      .select('*')
+      .select('id, organization_id, name, generic_name, brand_name, dosage_form, strength, unit_of_measure, barcode, category, requires_prescription, reorder_point, reorder_quantity, selling_price, currency_code, is_active, updated_at, updated_seq')
       .eq('id', id)
       .single()
 
@@ -88,7 +88,7 @@ export async function searchMedications(
   try {
     const { data, error } = await client
       .from('medications_master')
-      .select('*')
+      .select('id, organization_id, name, generic_name, brand_name, dosage_form, strength, unit_of_measure, barcode, category, requires_prescription, reorder_point, reorder_quantity, selling_price, currency_code, is_active, updated_at, updated_seq')
       .eq('organization_id', organizationId)
       .eq('is_active', true)
       .textSearch('fts', searchQuery, { type: 'websearch' })

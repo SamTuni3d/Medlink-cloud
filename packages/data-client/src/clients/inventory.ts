@@ -24,7 +24,7 @@ export async function getInventory(
   try {
     const { data, error } = await client
       .from('v_inventory_with_batches')
-      .select('*')
+      .select('inventory_id, organization_id, branch_id, medication_id, current_stock, reserved_stock, available_stock, medication_name, generic_name, dosage_form, strength, unit_of_measure, barcode, category, selling_price, currency_code, reorder_point, requires_prescription, active_batch_count, nearest_expiry_date, days_to_nearest_expiry, last_reconciled_at, updated_at')
       .eq('branch_id', branchId)
       .order('medication_name', { ascending: true })
 
@@ -53,7 +53,7 @@ export async function pullInventory(
   try {
     const { data, error } = await client
       .from('v_inventory_with_batches')
-      .select('*')
+      .select('inventory_id, organization_id, branch_id, medication_id, current_stock, reserved_stock, available_stock, medication_name, generic_name, dosage_form, strength, unit_of_measure, barcode, category, selling_price, currency_code, reorder_point, requires_prescription, active_batch_count, nearest_expiry_date, days_to_nearest_expiry, last_reconciled_at, updated_at')
       .eq('branch_id', branchId)
       // The view joins inventory which has updated_seq — we can't filter by it here.
       // Instead, join against the inventory table directly for cursor-based pull.
@@ -84,7 +84,7 @@ export async function getBatches(
   try {
     let query = client
       .from('inventory_batches')
-      .select('*')
+      .select('id, organization_id, branch_id, medication_id, supplier_id, batch_number, expiry_date, quantity_received, quantity_remaining, cost_price, currency_code, received_at, created_by, updated_at, updated_seq')
       .eq('branch_id', branchId)
       .eq('medication_id', medicationId)
       // FEFO ordering
@@ -120,7 +120,7 @@ export async function getMedicationByBarcode(
   try {
     const { data, error } = await client
       .from('v_inventory_with_batches')
-      .select('*')
+      .select('inventory_id, organization_id, branch_id, medication_id, current_stock, reserved_stock, available_stock, medication_name, generic_name, dosage_form, strength, unit_of_measure, barcode, category, selling_price, currency_code, reorder_point, requires_prescription, active_batch_count, nearest_expiry_date, days_to_nearest_expiry, last_reconciled_at, updated_at')
       .eq('branch_id', branchId)
       .eq('barcode', barcode.trim())
       .maybeSingle()
@@ -155,10 +155,7 @@ export async function getExpiringBatches(
   try {
     const { data, error } = await client
       .from('inventory_batches')
-      .select(`
-        *,
-        medications_master ( name )
-      `)
+      .select('id, organization_id, branch_id, medication_id, supplier_id, batch_number, expiry_date, quantity_received, quantity_remaining, cost_price, currency_code, received_at, created_by, updated_at, updated_seq, medications_master ( name )')
       .eq('branch_id', branchId)
       .eq('organization_id', organizationId)
       .gt('quantity_remaining', 0)
@@ -274,7 +271,7 @@ export async function getStockMovements(
   try {
     const { data, error } = await client
       .from('stock_movements')
-      .select('*')
+      .select('id, organization_id, branch_id, medication_id, batch_id, movement_type, delta, reference_id, notes, performed_by, created_at')
       .eq('branch_id', branchId)
       .eq('medication_id', medicationId)
       .order('created_at', { ascending: false })

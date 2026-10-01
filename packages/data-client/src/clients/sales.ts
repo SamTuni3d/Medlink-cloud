@@ -303,7 +303,7 @@ export async function voidSale(
     // Fetch the updated sale to return
     const { data, error } = await client
       .from('sales')
-      .select('*')
+      .select('id, organization_id, branch_id, device_id, cashier_id, sale_number, branch_sale_number, status, subtotal, discount_amount, tax_amount, total_amount, currency_code, payment_method, amount_tendered, change_given, prescription_number, customer_name, synced_at, created_at, updated_at')
       .eq('id', saleId)
       .single()
 

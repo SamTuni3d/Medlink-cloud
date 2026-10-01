@@ -19,7 +19,7 @@ export async function getNotifications(
   try {
     let query = client
       .from('notifications')
-      .select('*')
+      .select('id, organization_id, branch_id, type, severity, title, body, related_table, related_id, is_read, created_at')
       .eq('organization_id', organizationId)
       .order('created_at', { ascending: false })
       .limit(opts.limit ?? 50)
