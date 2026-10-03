@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation'
 import {
   LayoutDashboard, Package, ShoppingCart, BarChart2,
   Users, Settings, Tablet, ChevronRight, Bell, Truck,
-  FileText, ClipboardCheck, Clock, LogOut, BookOpen, Timer, type LucideIcon,
+  FileText, ClipboardCheck, Clock, LogOut, BookOpen, Timer, History, type LucideIcon,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/providers/auth-provider'
@@ -86,6 +86,12 @@ const NAV_SECTIONS: NavSection[] = [
         href: '/sales',
         label: 'Sales',
         icon: ShoppingCart,
+        roles: ['super_admin','org_admin','branch_manager','pharmacist','cashier','auditor'],
+      },
+      {
+        href: '/sales/history',
+        label: 'Sales History',
+        icon: History,
         roles: ['super_admin','org_admin','branch_manager','pharmacist','cashier','auditor'],
       },
       {
