@@ -8,7 +8,7 @@ import { registerOrganization } from './actions'
 type State = { error?: string } | null
 
 const inputCls =
-  'w-full border-0 border-b border-gray-200 bg-transparent px-0 py-2 text-sm text-gray-900 placeholder:text-gray-300 focus:border-[#58111A] focus:outline-none focus:ring-0 transition-colors'
+  'w-full border-0 border-b border-gray-200 bg-transparent px-0 py-2 text-sm text-gray-900 placeholder:text-gray-300 focus:border-teal-600 focus:outline-none focus:ring-0 transition-colors'
 
 function passwordStrength(pw: string): { score: number; label: string; color: string } {
   if (!pw) return { score: 0, label: '', color: '' }
@@ -108,7 +108,7 @@ export default function RegisterPage() {
     <div>
       {/* Tab switcher */}
       <div className="mb-7 flex gap-7 border-b border-gray-100">
-        <span className="relative pb-2.5 text-base font-bold text-gray-900 after:absolute after:inset-x-0 after:-bottom-px after:h-[2.5px] after:rounded-full after:bg-[#58111A]">
+        <span className="relative pb-2.5 text-base font-bold text-gray-900 after:absolute after:inset-x-0 after:-bottom-px after:h-[2.5px] after:rounded-full after:bg-teal-600">
           Sign Up
         </span>
         <Link
@@ -125,7 +125,7 @@ export default function RegisterPage() {
 
       <form action={formAction} className="space-y-4">
         <div>
-          <label htmlFor="organizationName" className="mb-1.5 block text-xs font-semibold text-[#58111A]">
+          <label htmlFor="organizationName" className="mb-1.5 block text-xs font-semibold text-teal-700">
             Pharmacy Name
           </label>
           <input
@@ -138,7 +138,7 @@ export default function RegisterPage() {
         </div>
 
         <div>
-          <label htmlFor="fullName" className="mb-1.5 block text-xs font-semibold text-[#58111A]">
+          <label htmlFor="fullName" className="mb-1.5 block text-xs font-semibold text-teal-700">
             Full Name
           </label>
           <input
@@ -152,7 +152,7 @@ export default function RegisterPage() {
         </div>
 
         <div>
-          <label htmlFor="email" className="mb-1.5 block text-xs font-semibold text-[#58111A]">
+          <label htmlFor="email" className="mb-1.5 block text-xs font-semibold text-teal-700">
             Email
           </label>
           <input
@@ -166,7 +166,7 @@ export default function RegisterPage() {
         </div>
 
         <div>
-          <label htmlFor="password" className="mb-1.5 block text-xs font-semibold text-[#58111A]">
+          <label htmlFor="password" className="mb-1.5 block text-xs font-semibold text-teal-700">
             Password
           </label>
           <PasswordInput
@@ -196,7 +196,7 @@ export default function RegisterPage() {
         </div>
 
         <div>
-          <label htmlFor="confirmPassword" className="mb-1.5 block text-xs font-semibold text-[#58111A]">
+          <label htmlFor="confirmPassword" className="mb-1.5 block text-xs font-semibold text-teal-700">
             Confirm Password
           </label>
           <PasswordInput
@@ -215,13 +215,13 @@ export default function RegisterPage() {
         <div className="flex items-start gap-2 pt-1">
           <input
             type="checkbox" id="terms" required
-            className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 cursor-pointer accent-[#58111A]"
+            className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 cursor-pointer accent-teal-600"
           />
           <label htmlFor="terms" className="cursor-pointer text-xs leading-relaxed text-gray-400">
             I agree to the{' '}
-            <span className="font-semibold text-[#58111A]">Terms of Service</span>
+            <span className="font-semibold text-teal-700">Terms of Service</span>
             {' '}and{' '}
-            <span className="font-semibold text-[#58111A]">Privacy Policy</span>
+            <span className="font-semibold text-teal-700">Privacy Policy</span>
           </label>
         </div>
 
@@ -235,7 +235,7 @@ export default function RegisterPage() {
           type="submit"
           disabled={isPending}
           className="mt-2 w-full rounded-xl py-3 text-sm font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-60"
-          style={{ background: '#58111A', boxShadow: '0 4px 18px rgba(88,17,26,.35)' }}
+          style={{ background: 'linear-gradient(90deg, #0ABFBC, #0D9488)', boxShadow: '0 4px 18px rgba(13,148,136,.35)' }}
         >
           {isPending ? 'Creating account…' : 'Sign Up'}
         </button>
@@ -254,7 +254,7 @@ export default function RegisterPage() {
 
       <p className="mt-6 text-center text-sm text-gray-400">
         Already have an account?{' '}
-        <Link href="/login" className="font-bold text-[#58111A] hover:opacity-80">
+        <Link href="/login" className="font-bold text-teal-700 hover:opacity-80">
           Sign In
         </Link>
       </p>
