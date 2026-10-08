@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useState, useTransition } from 'react'
-import { useAuth } from '@/providers/auth-provider'
 import { CheckCircle, AlertCircle, Clock, XCircle, CreditCard, Zap, Building2 } from 'lucide-react'
 import { getBillingAction, initiateUpgradeAction } from './actions'
 import type { Subscription } from '@medlink/data-client'
@@ -79,7 +78,6 @@ function PlanCard({ plan, current, onUpgrade, isPending }: PlanCardProps) {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function BillingPage() {
-  const { user } = useAuth()
   const [sub, setSub] = useState<Subscription | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()

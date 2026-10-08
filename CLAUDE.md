@@ -276,6 +276,8 @@ Navigation and route guards must check the user's role from the `useAuth()` hook
 | `duty_sessions` | Shift tracking — who clocked in/out at a branch, and when |
 | `prescriptions` | Patient prescriptions with status lifecycle (pending → dispensed/cancelled/expired) |
 | `prescription_items` | Line items per prescription — medication, qty prescribed vs dispensed |
+| `subscriptions` | One row per org — plan, status, trial window, Paystack IDs, enforced limits |
+| `billing_events` | Append-only log of every Paystack webhook event (idempotency + audit) |
 
 ---
 

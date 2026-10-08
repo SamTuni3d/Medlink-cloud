@@ -21,8 +21,8 @@ export default function TermsPage() {
         <div className="prose prose-gray max-w-none text-sm leading-relaxed text-gray-700 [&_h2]:mb-3 [&_h2]:mt-8 [&_h2]:text-base [&_h2]:font-bold [&_h2]:text-gray-900 [&_p]:mb-4 [&_ul]:mb-4 [&_ul]:list-disc [&_ul]:pl-5 [&_li]:mb-1">
 
           <p>
-            These Terms of Service ("Terms") govern your access to and use of the MedLink Cloud
-            platform ("Service"), operated by MedLink Technologies. By registering an account or
+            These Terms of Service (&ldquo;Terms&rdquo;) govern your access to and use of the MedLink Cloud
+            platform (&ldquo;Service&rdquo;), operated by MedLink Technologies. By registering an account or
             using the Service, you agree to be bound by these Terms.
           </p>
 
@@ -49,7 +49,7 @@ export default function TermsPage() {
             <li><strong>Free Trial:</strong> New accounts receive a 14-day free trial. No payment is required during this period.</li>
             <li><strong>Starter Plan:</strong> GHS 150 per month — one branch, up to 5 staff accounts.</li>
             <li><strong>Pro Plan:</strong> GHS 350 per month — up to 3 branches, up to 15 staff accounts.</li>
-            <li>We reserve the right to change pricing with 30 days' notice.</li>
+            <li>We reserve the right to change pricing with 30 days&apos; notice.</li>
             <li>All fees are non-refundable except where required by law.</li>
           </ul>
 
@@ -74,7 +74,7 @@ export default function TermsPage() {
           </p>
           <ul>
             <li>Obtaining any necessary patient consent before entering personal data.</li>
-            <li>Complying with Ghana's Data Protection Act 2012 and all applicable health data regulations.</li>
+            <li>Complying with Ghana&apos;s Data Protection Act 2012 and all applicable health data regulations.</li>
             <li>Ensuring that staff access to patient data is appropriately restricted using the role-based access controls provided.</li>
           </ul>
 

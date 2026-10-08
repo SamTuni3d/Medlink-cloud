@@ -21,7 +21,7 @@ export default function PrivacyPage() {
         <div className="prose prose-gray max-w-none text-sm leading-relaxed text-gray-700 [&_h2]:mb-3 [&_h2]:mt-8 [&_h2]:text-base [&_h2]:font-bold [&_h2]:text-gray-900 [&_p]:mb-4 [&_ul]:mb-4 [&_ul]:list-disc [&_ul]:pl-5 [&_li]:mb-1">
 
           <p>
-            MedLink Technologies ("we", "us", "our") operates the MedLink Cloud pharmacy
+            MedLink Technologies (&ldquo;we&rdquo;, &ldquo;us&rdquo;, &ldquo;our&rdquo;) operates the MedLink Cloud pharmacy
             management platform. This Privacy Policy explains what data we collect, how we use it,
             and your rights in relation to it.
           </p>
@@ -61,7 +61,7 @@ export default function PrivacyPage() {
           <h2>3. Patient Data</h2>
           <p>
             Patient data entered into MedLink is owned by your pharmacy. You are the data
-            controller under Ghana's Data Protection Act 2012; we are a data processor acting
+            controller under Ghana&apos;s Data Protection Act 2012; we are a data processor acting
             on your instructions. We process patient data solely to provide the Service to you
             and will not access it for any other purpose except as required by law.
           </p>
@@ -99,7 +99,7 @@ export default function PrivacyPage() {
           </p>
 
           <h2>7. Your Rights</h2>
-          <p>Under Ghana's Data Protection Act 2012, you have the right to:</p>
+          <p>Under Ghana&apos;s Data Protection Act 2012, you have the right to:</p>
           <ul>
             <li>Access the personal data we hold about you.</li>
             <li>Correct inaccurate data.</li>
