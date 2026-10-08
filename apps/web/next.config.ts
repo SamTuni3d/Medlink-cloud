@@ -1,5 +1,6 @@
 import type { NextConfig } from 'next'
 import withPWAInit from '@ducanh2912/next-pwa'
+import { withSentryConfig } from '@sentry/nextjs/config'
 
 const withPWA = withPWAInit({
   dest: 'public',
@@ -104,4 +105,9 @@ const nextConfig: NextConfig = {
   },
 }
 
-export default withPWA(nextConfig)
+export default withSentryConfig(withPWA(nextConfig), {
+  // Suppress the Sentry CLI upload output during builds
+  silent: !process.env.CI,
+  // Upload source maps to Sentry so stack traces show original code
+  widenClientFileUpload: true,
+})
