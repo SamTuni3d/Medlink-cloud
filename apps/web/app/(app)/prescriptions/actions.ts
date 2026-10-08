@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
+import { requireAuth, requireRole } from '@/lib/auth/requireRole'
 import {
   getPrescriptions,
   getPrescription,
@@ -15,6 +16,10 @@ import type { PrescriptionStatus } from '@medlink/data-client'
 type ActionResult<T = void> =
   | { ok: true; data: T }
   | { ok: false; error: { code: string; message: string } }
+
+const PRESCRIBE_ROLES = ['super_admin', 'org_admin', 'branch_manager', 'pharmacist']
+const DISPENSE_ROLES  = ['super_admin', 'org_admin', 'branch_manager', 'pharmacist']
+const CANCEL_ROLES    = ['super_admin', 'org_admin', 'branch_manager', 'pharmacist']
 
 const ItemSchema = z.object({
   medication_id: z.string().uuid(),
@@ -48,18 +53,21 @@ export async function createPrescriptionAction(
   }
 
   const client = await createClient()
-  const { data: { user }, error: authError } = await client.auth.getUser()
-  if (authError || !user) return { ok: false, error: { code: 'UNAUTHORIZED', message: 'Not authenticated' } }
+  const auth = await requireAuth(client)
+  if (!auth.ok) return auth
+
+  const roleCheck = await requireRole(client, auth.userId, PRESCRIBE_ROLES)
+  if (!roleCheck.ok) return roleCheck
 
   const { data: orgRow } = await client
     .from('users')
     .select('organization_id')
-    .eq('id', user.id)
+    .eq('id', auth.userId)
     .single()
 
   if (!orgRow) return { ok: false, error: { code: 'UNAUTHORIZED', message: 'User has no organization' } }
 
-  const result = await createPrescription(client, orgRow.organization_id, user.id, {
+  const result = await createPrescription(client, orgRow.organization_id, auth.userId, {
     ...parsed.data,
     patient_dob: parsed.data.patient_dob || null,
     patient_phone: parsed.data.patient_phone || null,
@@ -100,10 +108,13 @@ export async function dispensePrescriptionAction(
   }
 
   const client = await createClient()
-  const { data: { user }, error: authError } = await client.auth.getUser()
-  if (authError || !user) return { ok: false, error: { code: 'UNAUTHORIZED', message: 'Not authenticated' } }
+  const auth = await requireAuth(client)
+  if (!auth.ok) return auth
 
-  const result = await dispensePrescription(client, user.id, parsed.data)
+  const roleCheck = await requireRole(client, auth.userId, DISPENSE_ROLES)
+  if (!roleCheck.ok) return roleCheck
+
+  const result = await dispensePrescription(client, auth.userId, parsed.data)
   if (!result.ok) return { ok: false, error: result.error }
 
   revalidatePath('/prescriptions')
@@ -114,6 +125,12 @@ export async function cancelPrescriptionAction(id: string): Promise<ActionResult
   if (!id) return { ok: false, error: { code: 'VALIDATION_ERROR', message: 'ID required' } }
 
   const client = await createClient()
+  const auth = await requireAuth(client)
+  if (!auth.ok) return auth
+
+  const roleCheck = await requireRole(client, auth.userId, CANCEL_ROLES)
+  if (!roleCheck.ok) return roleCheck
+
   const result = await cancelPrescription(client, id)
   if (!result.ok) return { ok: false, error: result.error }
 
