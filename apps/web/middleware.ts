@@ -11,6 +11,8 @@ const AUTH_ROUTES = [
   '/forgot-password',
   '/reset-password',
   '/verify-email',
+  '/terms',
+  '/privacy',
 ]
 
 export async function middleware(request: NextRequest) {

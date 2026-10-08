@@ -219,9 +219,9 @@ export default function RegisterPage() {
           />
           <label htmlFor="terms" className="cursor-pointer text-xs leading-relaxed text-gray-400">
             I agree to the{' '}
-            <span className="font-semibold text-teal-700">Terms of Service</span>
+            <a href="/terms" target="_blank" rel="noopener noreferrer" className="font-semibold text-teal-700 underline hover:opacity-80">Terms of Service</a>
             {' '}and{' '}
-            <span className="font-semibold text-teal-700">Privacy Policy</span>
+            <a href="/privacy" target="_blank" rel="noopener noreferrer" className="font-semibold text-teal-700 underline hover:opacity-80">Privacy Policy</a>
           </label>
         </div>
 
