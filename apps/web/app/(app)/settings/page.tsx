@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { Building2, GitBranch, User, Save, Plus, Pencil, Check, X, Library } from 'lucide-react'
+import { Building2, GitBranch, User, Save, Plus, Pencil, Check, X, Library, CreditCard, ChevronRight } from 'lucide-react'
+import Link from 'next/link'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -347,6 +348,25 @@ export default function SettingsPage() {
 
       {/* Library Review tab — super_admin only */}
       {tab === 'library' && isSuperAdmin && <LibraryReviewTab />}
+
+      {/* Billing link — org_admin and super_admin only */}
+      {(primaryRole === 'org_admin' || isSuperAdmin) && (
+        <Link
+          href="/settings/billing"
+          className="flex items-center justify-between rounded-xl border border-gray-200 bg-white px-5 py-4 transition hover:border-teal-300 hover:bg-teal-50"
+        >
+          <div className="flex items-center gap-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-teal-100">
+              <CreditCard size={16} className="text-teal-700" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-gray-900">Billing &amp; Plan</p>
+              <p className="text-xs text-gray-500">Manage your subscription and payment method</p>
+            </div>
+          </div>
+          <ChevronRight size={16} className="text-gray-400" />
+        </Link>
+      )}
 
       {/* Profile tab */}
       {tab === 'profile' && (
