@@ -3,10 +3,14 @@
 import { z } from 'zod'
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
+import { requireAuth, requireRole } from '@/lib/auth/requireRole'
 
 export type ActionResult<T = void> =
   | { ok: true; data: T }
   | { ok: false; error: { code: string; message: string } }
+
+const BRANCH_ADMIN_ROLES = ['super_admin', 'org_admin']
+const ORG_ADMIN_ROLES    = ['super_admin', 'org_admin']
 
 // ── Branch ────────────────────────────────────────────────────────────────────
 
@@ -25,6 +29,11 @@ export async function createBranchAction(
   }
 
   const supabase = await createClient()
+  const auth = await requireAuth(supabase)
+  if (!auth.ok) return { ok: false, error: auth.error }
+  const role = await requireRole(supabase, auth.userId, BRANCH_ADMIN_ROLES)
+  if (!role.ok) return { ok: false, error: role.error }
+
   const { data, error } = await supabase
     .from('branches')
     .insert({
@@ -55,6 +64,11 @@ export async function updateBranchAction(
   }
 
   const supabase = await createClient()
+  const auth = await requireAuth(supabase)
+  if (!auth.ok) return { ok: false, error: auth.error }
+  const role = await requireRole(supabase, auth.userId, [...BRANCH_ADMIN_ROLES, 'branch_manager'])
+  if (!role.ok) return { ok: false, error: role.error }
+
   const { data, error } = await supabase
     .from('branches')
     .update({ name: parsed.data.name })
@@ -86,6 +100,11 @@ export async function updateOrganizationAction(
   }
 
   const supabase = await createClient()
+  const auth = await requireAuth(supabase)
+  if (!auth.ok) return { ok: false, error: auth.error }
+  const role = await requireRole(supabase, auth.userId, ORG_ADMIN_ROLES)
+  if (!role.ok) return { ok: false, error: role.error }
+
   const { error } = await supabase
     .from('organizations')
     .update({
@@ -104,9 +123,8 @@ export async function updateOrganizationAction(
 // ── User profile ──────────────────────────────────────────────────────────────
 
 const UpdateProfileSchema = z.object({
-  userId:    z.string().uuid(),
-  fullName:  z.string().min(1, 'Name is required'),
-  phone:     z.string().nullable().optional(),
+  fullName: z.string().min(1, 'Name is required'),
+  phone:    z.string().nullable().optional(),
 })
 
 export async function updateUserProfileAction(
@@ -118,16 +136,17 @@ export async function updateUserProfileAction(
   }
 
   const supabase = await createClient()
+  // Derive the user ID from the session — never accept it as input
+  const auth = await requireAuth(supabase)
+  if (!auth.ok) return { ok: false, error: auth.error }
 
-  // Update the users table
   const { error: dbErr } = await supabase
     .from('users')
     .update({ full_name: parsed.data.fullName, phone: parsed.data.phone ?? null })
-    .eq('id', parsed.data.userId)
+    .eq('id', auth.userId)
 
   if (dbErr) return { ok: false, error: { code: 'DB_ERROR', message: dbErr.message } }
 
-  // Also update auth metadata so the name shows in the topbar immediately
   await supabase.auth.updateUser({ data: { full_name: parsed.data.fullName } })
 
   return { ok: true, data: undefined }

@@ -101,7 +101,6 @@ export default function SettingsPage() {
     setSaving(true)
     setMessage(null)
     const result = await updateUserProfileAction({
-      userId:   user.id,
       fullName: fullName,
       phone:    phone || null,
     })

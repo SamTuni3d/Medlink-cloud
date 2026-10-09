@@ -3,6 +3,7 @@
 import { z } from 'zod'
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
+import { requireAuth, requireRole } from '@/lib/auth/requireRole'
 import {
   createMedication,
   updateMedication,
@@ -17,6 +18,8 @@ import {
 export type ActionResult<T = void> =
   | { ok: true; data: T }
   | { ok: false; error: { code: string; message: string } }
+
+const MANAGE_ROLES = ['super_admin', 'org_admin', 'branch_manager', 'pharmacist']
 
 // ── Add custom medication ─────────────────────────────────────────────────────
 
@@ -43,9 +46,15 @@ export async function addCustomMedicationAction(
     return { ok: false, error: { code: 'VALIDATION_ERROR', message: parsed.error.issues[0]?.message ?? 'Invalid input' } }
   }
 
+  const client = await createClient()
+  const auth = await requireAuth(client)
+  if (!auth.ok) return { ok: false, error: auth.error }
+  const role = await requireRole(client, auth.userId, MANAGE_ROLES)
+  if (!role.ok) return { ok: false, error: role.error }
+
   const { organizationId, genericName, dosageForm, strength, unitOfMeasure, sellingPrice, currencyCode, requiresPrescription, reorderPoint, reorderQuantity, ...rest } = parsed.data
 
-  const result = await createMedication(await createClient(), {
+  const result = await createMedication(client, {
     organization_id:       organizationId,
     name:                  rest.name,
     generic_name:          genericName ?? null,
@@ -64,9 +73,8 @@ export async function addCustomMedicationAction(
 
   if (!result.ok) return { ok: false, error: result.error }
 
-  // Silently submit to global library for crowdsourcing — errors never block the save.
-  // The RPC handles duplicate detection and rate-limiting server-side.
-  void submitToLibrary(await createClient(), {
+  // Silently crowdsource to global library — errors never block the save.
+  void submitToLibrary(client, {
     name:           rest.name,
     genericName:    genericName ?? null,
     brandName:      null,
@@ -84,11 +92,11 @@ export async function addCustomMedicationAction(
 // ── Update medication price / details ─────────────────────────────────────────
 
 const UpdateSchema = z.object({
-  id:             z.string().uuid(),
-  sellingPrice:   z.coerce.number().min(0).optional(),
-  reorderPoint:   z.coerce.number().int().min(0).optional(),
+  id:              z.string().uuid(),
+  sellingPrice:    z.coerce.number().min(0).optional(),
+  reorderPoint:    z.coerce.number().int().min(0).optional(),
   reorderQuantity: z.coerce.number().int().min(1).optional(),
-  isActive:       z.boolean().optional(),
+  isActive:        z.boolean().optional(),
 })
 
 export async function updateMedicationAction(
@@ -99,13 +107,19 @@ export async function updateMedicationAction(
     return { ok: false, error: { code: 'VALIDATION_ERROR', message: parsed.error.issues[0]?.message ?? 'Invalid input' } }
   }
 
+  const client = await createClient()
+  const auth = await requireAuth(client)
+  if (!auth.ok) return { ok: false, error: auth.error }
+  const role = await requireRole(client, auth.userId, MANAGE_ROLES)
+  if (!role.ok) return { ok: false, error: role.error }
+
   const { id, sellingPrice, reorderPoint, reorderQuantity, isActive } = parsed.data
 
-  const result = await updateMedication(await createClient(), id, {
-    ...(sellingPrice  !== undefined && { selling_price:   sellingPrice }),
-    ...(reorderPoint  !== undefined && { reorder_point:   reorderPoint }),
+  const result = await updateMedication(client, id, {
+    ...(sellingPrice    !== undefined && { selling_price:    sellingPrice }),
+    ...(reorderPoint    !== undefined && { reorder_point:    reorderPoint }),
     ...(reorderQuantity !== undefined && { reorder_quantity: reorderQuantity }),
-    ...(isActive      !== undefined && { is_active:       isActive }),
+    ...(isActive        !== undefined && { is_active:        isActive }),
   })
 
   if (!result.ok) return { ok: false, error: result.error }
@@ -117,12 +131,18 @@ export async function updateMedicationAction(
 
 // ── Delete medication ─────────────────────────────────────────────────────────
 
-export async function deleteMedicationAction(
-  id: string
-): Promise<ActionResult> {
+const DELETE_ROLES = ['super_admin', 'org_admin', 'branch_manager']
+
+export async function deleteMedicationAction(id: string): Promise<ActionResult> {
   if (!id) return { ok: false, error: { code: 'VALIDATION_ERROR', message: 'ID is required' } }
 
-  const result = await deleteMedication(await createClient(), id)
+  const client = await createClient()
+  const auth = await requireAuth(client)
+  if (!auth.ok) return { ok: false, error: auth.error }
+  const role = await requireRole(client, auth.userId, DELETE_ROLES)
+  if (!role.ok) return { ok: false, error: role.error }
+
+  const result = await deleteMedication(client, id)
   if (!result.ok) return { ok: false, error: result.error }
 
   revalidatePath('/medications')
@@ -130,7 +150,7 @@ export async function deleteMedicationAction(
   return { ok: true, data: undefined }
 }
 
-// ── Save medication counseling info sheet ──────────────────────────────────────
+// ── Save medication counseling info sheet ─────────────────────────────────────
 
 const CounselingActionSchema = z.object({
   medicationId:   z.string().uuid(),
@@ -146,15 +166,21 @@ export async function saveMedicationCounselingAction(
     return { ok: false, error: { code: 'VALIDATION_ERROR', message: parsed.error.issues[0]?.message ?? 'Invalid input' } }
   }
 
+  const client = await createClient()
+  const auth = await requireAuth(client)
+  if (!auth.ok) return { ok: false, error: auth.error }
+  const role = await requireRole(client, auth.userId, MANAGE_ROLES)
+  if (!role.ok) return { ok: false, error: role.error }
+
   const { medicationId, organizationId, fields } = parsed.data
-  const result = await upsertMedicationCounseling(await createClient(), medicationId, organizationId, fields)
+  const result = await upsertMedicationCounseling(client, medicationId, organizationId, fields)
   if (!result.ok) return { ok: false, error: result.error }
 
   revalidatePath('/medications')
   return { ok: true, data: undefined }
 }
 
-// ── Import from global library ─────────────────────────────────────────────────
+// ── Import from global library ────────────────────────────────────────────────
 
 const ImportSchema = z.object({
   organizationId: z.string().uuid(),
@@ -172,7 +198,13 @@ export async function importFromLibraryAction(
     return { ok: false, error: { code: 'VALIDATION_ERROR', message: parsed.error.issues[0]?.message ?? 'Invalid input' } }
   }
 
-  const result = await importFromLibrary(await createClient(), parsed.data)
+  const client = await createClient()
+  const auth = await requireAuth(client)
+  if (!auth.ok) return { ok: false, error: auth.error }
+  const role = await requireRole(client, auth.userId, MANAGE_ROLES)
+  if (!role.ok) return { ok: false, error: role.error }
+
+  const result = await importFromLibrary(client, parsed.data)
   if (!result.ok) return { ok: false, error: result.error }
 
   revalidatePath('/medications')
