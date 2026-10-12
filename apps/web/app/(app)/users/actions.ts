@@ -4,7 +4,7 @@ import { z } from 'zod'
 import { revalidatePath } from 'next/cache'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
-import { createUserRecord, getRoleIdByName, assignUserRole, getBranches } from '@medlink/data-client'
+import { createUserRecord, getRoleIdByName, assignUserRole, getBranches, getSubscription, hasReachedUserLimit } from '@medlink/data-client'
 import type { Branch } from '@medlink/data-client'
 
 export type ActionResult<T = void> =
@@ -79,6 +79,24 @@ export async function inviteStaffAction(
     .gte('created_at', oneHourAgo)
   if ((recentCount ?? 0) >= INVITE_RATE_LIMIT) {
     return { ok: false, error: { code: 'CONFLICT', message: 'Too many invitations sent recently. Please wait before inviting more staff.' } }
+  }
+
+  // Enforce subscription user limit
+  const subResult = await getSubscription(supabase, organizationId)
+  if (subResult.ok) {
+    const { count: userCount } = await admin
+      .from('users')
+      .select('id', { count: 'exact', head: true })
+      .eq('organization_id', organizationId)
+    if (hasReachedUserLimit(subResult.data, userCount ?? 0)) {
+      return {
+        ok: false,
+        error: {
+          code: 'CONFLICT',
+          message: `Your ${subResult.data.plan} plan allows up to ${subResult.data.max_users} user${subResult.data.max_users === 1 ? '' : 's'}. Upgrade to invite more staff.`,
+        },
+      }
+    }
   }
 
   // 1. Send invitation email — Supabase delivers a magic link; user sets their password on first login

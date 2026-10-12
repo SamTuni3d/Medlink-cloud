@@ -323,16 +323,21 @@ Rules:
 
 ---
 
+## Implemented Integrations
+
+| Integration | Purpose | Location |
+|---|---|---|
+| **Arkesel SMS** | Prescription ready / low-stock alerts (fire-and-forget) | `supabase/functions/send-alert/`, `apps/web/lib/notify.ts` |
+
+Arkesel is live. The Edge Function (`send-alert`) always returns 200 — failures are logged to `audit_logs` and never surface to callers. Use `notifyLowStock()` / `notifyPrescriptionReady()` from `apps/web/lib/notify.ts`; both are fire-and-forget (`void`).
+
 ## Planned Phase 2 Integrations (not yet in codebase)
 
 These integrations are designed but not yet implemented. Do not stub or pre-build them.
 
 | Integration | Purpose | Notes |
 |---|---|---|
-| **Arkesel SMS** | Prescription ready / low-stock alerts | SMS failure must NEVER block a sale or stock operation — fire-and-forget |
 | **OpenFDA API** | Drug interaction checking, medication metadata | Cache responses; never block dispensing on API failure |
-
-When implementing Arkesel: wrap the HTTP call in a try/catch, log failure to `audit_logs`, and return success to the caller regardless. The SMS is a notification, not a gate.
 
 ---
 

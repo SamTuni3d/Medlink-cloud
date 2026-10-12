@@ -4,6 +4,7 @@ import { z } from 'zod'
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { requireAuth, requireRole } from '@/lib/auth/requireRole'
+import { getSubscription, hasReachedBranchLimit } from '@medlink/data-client'
 
 export type ActionResult<T = void> =
   | { ok: true; data: T }
@@ -33,6 +34,25 @@ export async function createBranchAction(
   if (!auth.ok) return { ok: false, error: auth.error }
   const role = await requireRole(supabase, auth.userId, BRANCH_ADMIN_ROLES)
   if (!role.ok) return { ok: false, error: role.error }
+
+  // Enforce subscription branch limit
+  const subResult = await getSubscription(supabase, parsed.data.organizationId)
+  if (subResult.ok) {
+    const { count: branchCount } = await supabase
+      .from('branches')
+      .select('id', { count: 'exact', head: true })
+      .eq('organization_id', parsed.data.organizationId)
+      .eq('is_active', true)
+    if (hasReachedBranchLimit(subResult.data, branchCount ?? 0)) {
+      return {
+        ok: false,
+        error: {
+          code: 'CONFLICT',
+          message: `Your ${subResult.data.plan} plan allows up to ${subResult.data.max_branches} branch${subResult.data.max_branches === 1 ? '' : 'es'}. Upgrade to add more.`,
+        },
+      }
+    }
+  }
 
   const { data, error } = await supabase
     .from('branches')
